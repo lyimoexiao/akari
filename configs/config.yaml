@@ -19,6 +19,11 @@ cache:
   redis_db: 0
   file_dir: data/cache
 
+jwt:
+  secret: "change-me-in-production"   # HMAC secret key for signing tokens
+  issuer: "akari"                      # token issuer claim
+  expiration: 24h                      # token time-to-live (e.g. 1h, 24h, 7d)
+
 logger:
   level: info
   format: console

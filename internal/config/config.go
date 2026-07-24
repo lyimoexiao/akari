@@ -13,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Cache    CacheConfig    `mapstructure:"cache"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
 }
 
 type ServerConfig struct {
@@ -40,6 +41,12 @@ type DatabaseConfig struct {
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	Name     string `mapstructure:"name"`
+}
+
+type JWTConfig struct {
+	Secret     string `mapstructure:"secret"`
+	Issuer     string `mapstructure:"issuer"`
+	Expiration string `mapstructure:"expiration"`
 }
 
 type CacheConfig struct {
@@ -120,6 +127,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("logger.max_backups", 3)
 	v.SetDefault("logger.compress", true)
 	v.SetDefault("logger.local_time", true)
+
+	v.SetDefault("jwt.secret", "change-me-in-production")
+	v.SetDefault("jwt.issuer", "akari")
+	v.SetDefault("jwt.expiration", "24h")
 }
 
 // loadDotEnv reads a .env file and sets each KEY=VALUE into the OS environment,
