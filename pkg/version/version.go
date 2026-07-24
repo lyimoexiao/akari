@@ -13,10 +13,10 @@ import (
 
 // Build-time injected via Makefile's -ldflags.
 var (
-	Version = "dev"      // semantic version, e.g. "0.1.0"
-	Branch  = "unknown"  // git branch name
-	Commit  = "none"     // git commit hash
-	Date    = "unknown"  // build timestamp (RFC3339)
+	Version = "dev"     // semantic version, e.g. "0.1.0"
+	Branch  = "unknown" // git branch name
+	Commit  = "none"    // git commit hash
+	Date    = "unknown" // build timestamp (RFC3339)
 )
 
 // Info returns a multi-line summary of the build.

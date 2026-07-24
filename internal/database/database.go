@@ -93,5 +93,3 @@ func openDSN(dbType, dsn string) (gorm.Dialector, error) {
 		return nil, fmt.Errorf("unsupported database type: %s", dbType)
 	}
 }
-
-

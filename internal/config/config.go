@@ -59,10 +59,10 @@ type CacheConfig struct {
 
 // Load reads configuration from multiple sources with the following priority
 // (highest to lowest):
-//   1. OS environment variables
-//   2. .env file (loaded into environment before viper reads)
-//   3. config.yaml (in ./, configs/, or custom CONFIG_PATH)
-//   4. Built-in defaults
+//  1. OS environment variables
+//  2. .env file (loaded into environment before viper reads)
+//  3. config.yaml (in ./, configs/, or custom CONFIG_PATH)
+//  4. Built-in defaults
 func Load(path string) (*Config, error) {
 	// 1. Load .env into environment (so viper's AutomaticEnv picks it up)
 	loadDotEnv(".env")
