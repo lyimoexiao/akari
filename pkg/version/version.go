@@ -14,6 +14,7 @@ import (
 // Build-time injected via Makefile's -ldflags.
 var (
 	Version = "dev"      // semantic version, e.g. "0.1.0"
+	Branch  = "unknown"  // git branch name
 	Commit  = "none"     // git commit hash
 	Date    = "unknown"  // build timestamp (RFC3339)
 )
@@ -22,6 +23,7 @@ var (
 func Info() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Version    %s\n", Version))
+	sb.WriteString(fmt.Sprintf("Branch     %s\n", Branch))
 	sb.WriteString(fmt.Sprintf("Commit     %s\n", Commit))
 	sb.WriteString(fmt.Sprintf("Built at   %s\n", Date))
 	sb.WriteString(fmt.Sprintf("Go version %s\n", runtime.Version()))
@@ -36,5 +38,5 @@ func Info() string {
 
 // Short returns a one-line summary suitable for logs.
 func Short() string {
-	return fmt.Sprintf("%s (commit=%s built=%s)", Version, Commit, Date)
+	return fmt.Sprintf("%s (branch=%s commit=%s built=%s)", Version, Branch, Commit, Date)
 }

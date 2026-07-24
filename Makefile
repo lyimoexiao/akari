@@ -5,10 +5,12 @@ BIN      ?= bin/server
 BIN_DIR  ?= bin
 
 # Build-time variables injected via -ldflags (see pkg/version)
-VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION  ?= $(shell node -p "require('./package.json').version" 2>/dev/null || echo "dev")
 COMMIT   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+BRANCH   ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -X "github.com/lyimoexiao/akari/pkg/version.Version=$(VERSION)" \
+           -X "github.com/lyimoexiao/akari/pkg/version.Branch=$(BRANCH)" \
            -X "github.com/lyimoexiao/akari/pkg/version.Commit=$(COMMIT)" \
            -X "github.com/lyimoexiao/akari/pkg/version.Date=$(DATE)"
 
@@ -56,6 +58,7 @@ wire: ## Regenerate Wire dependency injection
 
 version: ## Show build version info
 	@echo "Version: $(VERSION)"
+	@echo "Branch:  $(BRANCH)"
 	@echo "Commit:  $(COMMIT)"
 	@echo "Date:    $(DATE)"
 
