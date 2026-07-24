@@ -33,10 +33,9 @@ run: ## Run the server (loads .env if present)
 		$(GO) run ./cmd/server/
 
 dev: install ## Run backend and frontend concurrently
-	@echo "Starting backend (air) and frontend (vite)..."
-	@trap 'kill 0' EXIT; \
-		($(GO) run ./cmd/server/ &) \
-		(pnpm dev &) \
+	@echo "Starting backend and frontend..."
+	@$(GO) run ./cmd/server/ & \
+		pnpm dev & \
 		wait
 
 migrate: ## Run database migrations
