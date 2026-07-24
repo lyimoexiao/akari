@@ -1,0 +1,27 @@
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
+packages:
+  - 'packages/*'
+
+catalogs:
+  dev:
+    '@antfu/eslint-config': ^9.2.0
+    '@tsconfig/node24': ^24.0.4
+    '@types/node': ^24.13.3
+    eslint: ^10.7.0
+    eslint-plugin-format: ^2.0.1
+    typescript: ~6.0.0
+    vue-tsc: ^3.3.7
+  frontend:
+    '@vitejs/plugin-vue': ^6.0.8
+    '@vue/tsconfig': ^0.9.1
+
+    unocss: ^66.7.5
+    vite: ^8.1.5
+    vite-plugin-vue-devtools: ^8.1.5
+  prod:
+    pinia: ^4.0.2
+    vue: ^3.5.40
+    vue-router: ^5.2.0
