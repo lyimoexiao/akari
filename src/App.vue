@@ -1,11 +1,36 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { darkTheme, useOsTheme } from 'naive-ui'
+
+const osTheme = useOsTheme()
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <n-config-provider :theme="osTheme === 'dark' ? darkTheme : null" :theme-overrides="{ common: { borderRadius: '8px' } }">
+    <n-global-style />
+    <n-message-provider>
+      <n-dialog-provider>
+        <router-view />
+      </n-dialog-provider>
+    </n-message-provider>
+  </n-config-provider>
 </template>
 
-<style scoped></style>
+<style>
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  height: 100%;
+}
+
+#app {
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+</style>

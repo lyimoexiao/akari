@@ -19,13 +19,10 @@ func main() {
 
 	db, err := database.New(&cfg.Database)
 	if err != nil {
-		l.Fatalw("failed to connect database", "error", err)
+		l.Fatalw("failed to setup database", "error", err)
 	}
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()
 
-	l.Info("running auto-migration...")
-	// Add your models here:
-	// db.AutoMigrate(&models.User{}, &models.Post{})
 	l.Info("migration complete")
 }

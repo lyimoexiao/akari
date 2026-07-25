@@ -9,11 +9,20 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Cache    CacheConfig    `mapstructure:"cache"`
-	Logger   LoggerConfig   `mapstructure:"logger"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
+	Server    ServerConfig    `mapstructure:"server"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Cache     CacheConfig     `mapstructure:"cache"`
+	Logger    LoggerConfig    `mapstructure:"logger"`
+	JWT       JWTConfig       `mapstructure:"jwt"`
+	Captcha   CaptchaConfig   `mapstructure:"captcha"`
+	SMTP      SMTPConfig      `mapstructure:"smtp"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Yggdrasil YggdrasilConfig `mapstructure:"yggdrasil"`
+}
+
+type YggdrasilConfig struct {
+	ServerName         string `mapstructure:"server_name"`
+	ImplementationName string `mapstructure:"implementation_name"`
 }
 
 type ServerConfig struct {
@@ -49,12 +58,50 @@ type JWTConfig struct {
 	Expiration string `mapstructure:"expiration"`
 }
 
+type CaptchaConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	Type        string `mapstructure:"type"`
+	CachePrefix string `mapstructure:"cache_prefix"`
+}
+
+// AuthConfig controls user registration and email verification behavior.
+type AuthConfig struct {
+	RegistrationEnabled      bool   `mapstructure:"registration_enabled"`
+	EmailVerificationEnabled bool   `mapstructure:"email_verification_enabled"`
+	VerifyEmailTokenTTL      string `mapstructure:"verify_email_token_ttl"`
+	PasswordResetEnabled     bool   `mapstructure:"password_reset_enabled"`
+	PasswordResetTokenTTL    string `mapstructure:"password_reset_token_ttl"`
+}
+
+type SMTPConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	From     string `mapstructure:"from"`
+	SSL      bool   `mapstructure:"ssl"`
+}
+
 type CacheConfig struct {
-	Type          string `mapstructure:"type"`
-	RedisAddr     string `mapstructure:"redis_addr"`
-	RedisPassword string `mapstructure:"redis_password"`
-	RedisDB       int    `mapstructure:"redis_db"`
-	FileDir       string `mapstructure:"file_dir"`
+	Type   string            `mapstructure:"type"` // memory | redis | file
+	Memory MemoryCacheConfig `mapstructure:"memory"`
+	Redis  RedisCacheConfig  `mapstructure:"redis"`
+	File   FileCacheConfig   `mapstructure:"file"`
+}
+
+type MemoryCacheConfig struct {
+	DefaultTTL string `mapstructure:"default_ttl"`
+	Size       int    `mapstructure:"size"`
+}
+
+type RedisCacheConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+}
+
+type FileCacheConfig struct {
+	Dir string `mapstructure:"dir"`
 }
 
 // Load reads configuration from multiple sources with the following priority
@@ -101,6 +148,12 @@ func Load(path string) (*Config, error) {
 
 // setDefaults registers all built-in default values.
 func setDefaults(v *viper.Viper) {
+	v.SetDefault("auth.registration_enabled", true)
+	v.SetDefault("auth.email_verification_enabled", false)
+	v.SetDefault("auth.verify_email_token_ttl", "2h")
+	v.SetDefault("auth.password_reset_enabled", true)
+	v.SetDefault("auth.password_reset_token_ttl", "30m")
+
 	v.SetDefault("server.port", "8080")
 	v.SetDefault("server.mode", "debug")
 	v.SetDefault("server.shutdown_timeout", 10)
@@ -113,11 +166,13 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.name", "data/akari.db")
 	v.SetDefault("database.dsn", "")
 
-	v.SetDefault("cache.type", "file")
-	v.SetDefault("cache.redis_addr", "localhost:6379")
-	v.SetDefault("cache.redis_password", "")
-	v.SetDefault("cache.redis_db", 0)
-	v.SetDefault("cache.file_dir", "data/cache")
+	v.SetDefault("cache.type", "memory")
+	v.SetDefault("cache.memory.default_ttl", "5m")
+	v.SetDefault("cache.memory.size", 1024)
+	v.SetDefault("cache.redis.addr", "localhost:6379")
+	v.SetDefault("cache.redis.password", "")
+	v.SetDefault("cache.redis.db", 0)
+	v.SetDefault("cache.file.dir", "data/cache")
 
 	v.SetDefault("logger.level", "info")
 	v.SetDefault("logger.format", "console")
@@ -131,6 +186,20 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.secret", "change-me-in-production")
 	v.SetDefault("jwt.issuer", "akari")
 	v.SetDefault("jwt.expiration", "24h")
+
+	v.SetDefault("captcha.enabled", false)
+	v.SetDefault("captcha.type", "click")
+	v.SetDefault("captcha.cache_prefix", "captcha:")
+
+	v.SetDefault("smtp.host", "localhost")
+	v.SetDefault("smtp.port", "25")
+	v.SetDefault("smtp.username", "")
+	v.SetDefault("smtp.password", "")
+	v.SetDefault("smtp.from", "noreply@example.com")
+	v.SetDefault("smtp.ssl", false)
+
+	v.SetDefault("yggdrasil.server_name", "Akari Yggdrasil")
+	v.SetDefault("yggdrasil.implementation_name", "akari-yggdrasil")
 }
 
 // loadDotEnv reads a .env file and sets each KEY=VALUE into the OS environment,

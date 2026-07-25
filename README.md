@@ -1,5 +1,7 @@
 # Akari
 
+Another Minecraft Yggdrasil API-Compatible Server
+
 ## Build Environment
 
 - **Node.js**: `^22.18.0` or `>=24.12.0`

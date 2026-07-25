@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 
 	"github.com/lyimoexiao/akari/internal/config"
+	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func ensureDir(dbType, dsn string) {
@@ -28,7 +30,7 @@ func New(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: gormlogger.Default.LogMode(gormlogger.Info),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect database: %w", err)
@@ -40,6 +42,11 @@ func New(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	}
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
+
+	// Auto-migrate all models
+	if err := db.AutoMigrate(&model.User{}, &yggdrasil.YggdrasilProfile{}, &yggdrasil.YggdrasilToken{}); err != nil {
+		return nil, fmt.Errorf("auto migrate: %w", err)
+	}
 
 	return db, nil
 }

@@ -8,14 +8,21 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lyimoexiao/akari/internal/admin"
+	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/cache"
+	"github.com/lyimoexiao/akari/internal/captcha"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/logger"
 	"github.com/lyimoexiao/akari/internal/router"
+	"github.com/lyimoexiao/akari/internal/smtp"
+	"github.com/lyimoexiao/akari/internal/yggdrasil"
+	"github.com/lyimoexiao/akari/pkg/jwt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strings"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -34,19 +41,46 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	engine := ProvideEngine(config, db, cache)
-	sugaredLogger, cleanup3, err := ProvideLogger(config)
+	service := ProvideCaptcha(config, cache)
+	manager := ProvideJWTManager(config)
+	mailer, cleanup3, err := ProvideMailer(config)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
+	authService := ProvideAuthService(db, cache, manager, mailer, config)
+	middleware := ProvideAuthMiddleware(authService)
+	sugaredLogger, cleanup4, err := ProvideLogger(config)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	handler := ProvideAuthHandler(authService, middleware, config, service, sugaredLogger)
+	adminService := ProvideAdminService(db)
+	adminHandler := ProvideAdminHandler(adminService, middleware, sugaredLogger)
+	keyManager, err := ProvideYggdrasilKeyManager()
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	yggdrasilService := ProvideYggdrasilService(db, cache, config, sugaredLogger, keyManager)
+	yggdrasilHandler := ProvideYggdrasilHandler(yggdrasilService, sugaredLogger)
+	engine := ProvideEngine(config, db, cache, service, handler, adminHandler, yggdrasilHandler, middleware, sugaredLogger)
 	app := &App{
-		Config: config,
-		Engine: engine,
-		Logger: sugaredLogger,
+		Config:     config,
+		Engine:     engine,
+		Logger:     sugaredLogger,
+		Mailer:     mailer,
+		CaptchaSvc: service,
 	}
 	return app, func() {
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()
@@ -56,9 +90,11 @@ func Initialize(cfgPath string) (*App, func(), error) {
 // wire.go:
 
 type App struct {
-	Engine *gin.Engine
-	Logger *zap.SugaredLogger
-	Config *config.Config
+	Engine     *gin.Engine
+	Logger     *zap.SugaredLogger
+	Config     *config.Config
+	Mailer     *smtp.Mailer
+	CaptchaSvc *captcha.Service
 }
 
 func ProvideConfig(cfgPath string) (*config.Config, error) {
@@ -92,9 +128,86 @@ func ProvideCache(cfg *config.Config) (cache.Cache, func(), error) {
 	return c, cleanup, nil
 }
 
-func ProvideEngine(cfg *config.Config, db *gorm.DB, c cache.Cache) *gin.Engine {
-	setGinMode(cfg.Server.Mode)
-	return router.Setup(db, c)
+func ProvideMailer(cfg *config.Config) (*smtp.Mailer, func(), error) {
+	m := smtp.New(&cfg.SMTP)
+	cleanup := func() {
+		_ = m.Close()
+	}
+	return m, cleanup, nil
+}
+
+func ProvideEngine(
+	config *config.Config,
+	db *gorm.DB,
+	c cache.Cache,
+	captchaSvc *captcha.Service,
+	handler *auth.Handler,
+	adminHandler *admin.Handler,
+	yggdrasilHandler *yggdrasil.Handler,
+	authMw *auth.Middleware, logger2 *zap.SugaredLogger,
+) *gin.Engine {
+	setGinMode(config.Server.Mode)
+	return router.Setup(db, c, captchaSvc, handler, adminHandler, yggdrasilHandler, authMw, logger2)
+}
+
+func ProvideCaptcha(cfg *config.Config, c cache.Cache) *captcha.Service {
+	return captcha.New(&cfg.Captcha, c)
+}
+
+func ProvideJWTManager(cfg *config.Config) *jwt.Manager {
+	exp, _ := time.ParseDuration(cfg.JWT.Expiration)
+	return jwt.New(&jwt.Config{
+		Secret:     cfg.JWT.Secret,
+		Issuer:     cfg.JWT.Issuer,
+		Expiration: exp,
+	})
+}
+
+func ProvideAuthService(
+	db *gorm.DB,
+	c cache.Cache,
+	jwtManager *jwt.Manager,
+	mailer *smtp.Mailer,
+	cfg *config.Config,
+) *auth.Service {
+	return auth.NewService(db, c, jwtManager, mailer, &cfg.Auth, &cfg.JWT)
+}
+
+func ProvideAuthHandler(
+	svc *auth.Service,
+	mw *auth.Middleware,
+	cfg *config.Config,
+	captchaSvc *captcha.Service, logger2 *zap.SugaredLogger,
+) *auth.Handler {
+	return auth.NewHandler(svc, mw, &auth.HandlerConfig{
+		RegistrationEnabled:      cfg.Auth.RegistrationEnabled,
+		EmailVerificationEnabled: cfg.Auth.EmailVerificationEnabled,
+	}, captchaSvc, logger2)
+}
+
+func ProvideAuthMiddleware(svc *auth.Service) *auth.Middleware {
+	return auth.NewMiddleware(svc)
+}
+
+func ProvideAdminService(db *gorm.DB) *admin.Service {
+	return admin.NewService(db)
+}
+
+func ProvideAdminHandler(svc *admin.Service, mw *auth.Middleware, logger2 *zap.SugaredLogger) *admin.Handler {
+	return admin.NewHandler(svc, mw, logger2)
+}
+
+func ProvideYggdrasilKeyManager() (*yggdrasil.KeyManager, error) {
+
+	return yggdrasil.NewKeyManager("data")
+}
+
+func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, logger2 *zap.SugaredLogger, km *yggdrasil.KeyManager) *yggdrasil.Service {
+	return yggdrasil.NewService(db, c, &cfg.Auth, logger2, km, &cfg.Yggdrasil)
+}
+
+func ProvideYggdrasilHandler(svc *yggdrasil.Service, logger2 *zap.SugaredLogger) *yggdrasil.Handler {
+	return yggdrasil.NewHandler(svc, logger2)
 }
 
 func setGinMode(mode string) {

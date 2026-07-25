@@ -1,6 +1,8 @@
 shellEmulator: true
 
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver@6.3.1
 
 packages:
   - 'packages/*'
@@ -13,15 +15,22 @@ catalogs:
     eslint: ^10.7.0
     eslint-plugin-format: ^2.0.1
     typescript: ~6.0.0
+    unplugin-auto-import: ^21.0.0
+    unplugin-vue-components: ^32.1.0
     vue-tsc: ^3.3.7
   frontend:
+    '@iconify/json': ^2.2.504
+    '@unocss/preset-icons': ^66.7.5
     '@vitejs/plugin-vue': ^6.0.8
     '@vue/tsconfig': ^0.9.1
 
     unocss: ^66.7.5
     vite: ^8.1.5
     vite-plugin-vue-devtools: ^8.1.5
+
   prod:
+    go-captcha-vue: ^2.0.7
+    naive-ui: ^2.44.1
     pinia: ^4.0.2
     vue: ^3.5.40
     vue-router: ^5.2.0

@@ -15,20 +15,26 @@
     "lint": "eslint . --fix --cache"
   },
   "dependencies": {
+    "go-captcha-vue": "catalog:prod",
+    "naive-ui": "catalog:prod",
     "pinia": "catalog:prod",
     "vue": "catalog:prod",
     "vue-router": "catalog:prod"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
+    "@iconify/json": "catalog:frontend",
     "@tsconfig/node24": "catalog:dev",
     "@types/node": "catalog:dev",
+    "@unocss/preset-icons": "catalog:frontend",
     "@vitejs/plugin-vue": "catalog:frontend",
     "@vue/tsconfig": "catalog:frontend",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "typescript": "catalog:dev",
     "unocss": "catalog:frontend",
+    "unplugin-auto-import": "catalog:dev",
+    "unplugin-vue-components": "catalog:dev",
     "vite": "catalog:frontend",
     "vite-plugin-vue-devtools": "catalog:frontend",
     "vue-tsc": "catalog:dev"

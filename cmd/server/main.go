@@ -44,7 +44,6 @@ func main() {
 	sig := <-quit
 	app.Logger.Infow("received signal, shutting down", "signal", sig, "timeout", shutdownTimeout)
 
-	// Give Gin some time to drain in-flight requests
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
@@ -52,7 +51,5 @@ func main() {
 		app.Logger.Errorw("forced shutdown", "error", err)
 	}
 
-	// Logger sync must happen after all other cleanup
-	_ = app.Logger.Sync()
 	app.Logger.Info("server stopped")
 }
