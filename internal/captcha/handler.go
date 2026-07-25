@@ -43,6 +43,35 @@ type VerifyReq struct {
 	UserAnswer map[string]any `json:"user_answer" binding:"required"`
 }
 
+// VerifyTurnstileReq is the expected JSON body for Turnstile verification.
+type VerifyTurnstileReq struct {
+	Token string `json:"token" binding:"required"`
+}
+
+// TurnstileVerify handles POST /api/v1/captcha/turnstile-verify for Turnstile tokens.
+func (h *Handler) TurnstileVerify(ctx *gin.Context) {
+	var req VerifyTurnstileReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(ctx, "无效请求: "+err.Error())
+		return
+	}
+
+	pass, err := h.svc.VerifyToken(ctx.Request.Context(), req.Token)
+	if err != nil {
+		response.Success(ctx, gin.H{
+			"enabled": true,
+			"pass":    false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	response.Success(ctx, gin.H{
+		"enabled": true,
+		"pass":    pass,
+	})
+}
+
 // Verify handles POST /api/v1/captcha/verify and checks the user's answer.
 func (h *Handler) Verify(ctx *gin.Context) {
 	if !h.svc.IsEnabled() {

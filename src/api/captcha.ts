@@ -2,7 +2,7 @@ import { http } from '@/api/index'
 
 export interface CaptchaEnvelope {
   enabled: boolean
-  data: CaptchaData
+  data: CaptchaData | TurnstileData
 }
 
 export interface CaptchaData {
@@ -16,6 +16,11 @@ export interface CaptchaData {
   thumb_x?: number
   thumb_y?: number
   angle?: number
+}
+
+export interface TurnstileData {
+  provider: 'turnstile'
+  site_key: string
 }
 
 export function fetchCaptcha(): Promise<CaptchaEnvelope> {

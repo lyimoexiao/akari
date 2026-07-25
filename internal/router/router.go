@@ -45,6 +45,7 @@ func Setup(db *gorm.DB, c cache.Cache, captchaSvc *captcha.Service, authHandler 
 		h := captcha.NewHandler(captchaSvc)
 		v1.GET("/captcha", h.Generate)
 		v1.POST("/captcha/verify", h.Verify)
+		v1.POST("/captcha/turnstile-verify", h.TurnstileVerify)
 	}
 
 	// Auth routes

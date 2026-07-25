@@ -17,6 +17,7 @@ export interface LoginReq {
   password: string
   captcha_id?: string
   user_answer?: Record<string, unknown>
+  captcha_token?: string
 }
 
 export interface RegisterReq {
@@ -25,6 +26,7 @@ export interface RegisterReq {
   password: string
   captcha_id?: string
   user_answer?: Record<string, unknown>
+  captcha_token?: string
 }
 
 export interface YggdrasilStatusResp {
@@ -43,6 +45,7 @@ export interface ForgotPasswordReq {
   email: string
   captcha_id?: string
   user_answer?: Record<string, unknown>
+  captcha_token?: string
 }
 
 export interface ResetPasswordReq {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormInst, FormRules } from 'naive-ui'
-import type { CaptchaData } from '@/api/captcha'
+import type { CaptchaData, TurnstileData } from '@/api/captcha'
 import { useMessage } from 'naive-ui'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -19,9 +19,11 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 
-// Captcha state
+function isCaptchaData(data: CaptchaData | TurnstileData | null): data is CaptchaData {
+  return data !== null && 'captcha_id' in data
+}
 const captchaEnabled = ref(false)
-const captchaData = ref<CaptchaData | null>(null)
+const captchaData = ref<CaptchaData | TurnstileData | null>(null)
 const captchaResult = ref<Record<string, unknown> | null>(null)
 const showCaptcha = ref(false)
 const captchaKey = ref(0)
@@ -92,12 +94,18 @@ async function handleLogin() {
 
   loading.value = true
   try {
-    await authStore.login({
+    const params: Record<string, any> = {
       username: username.value,
       password: password.value,
-      captcha_id: captchaData.value?.captcha_id,
-      user_answer: captchaResult.value ?? undefined,
-    })
+    }
+    if (captchaResult.value?.turnstile_token) {
+      params.captcha_token = captchaResult.value.turnstile_token
+    }
+    else if (isCaptchaData(captchaData.value)) {
+      params.captcha_id = captchaData.value.captcha_id
+      params.user_answer = captchaResult.value ?? undefined
+    }
+    await authStore.login(params as any)
     router.push('/')
   }
   catch (err) {

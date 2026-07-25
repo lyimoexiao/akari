@@ -31,8 +31,12 @@ jwt:
 
 captcha:
   enabled: true
+  provider: gocaptcha # "gocaptcha" | "turnstile"
   type: click
   cache_prefix: 'captcha:'
+  turnstile:
+    site_key: ''
+    secret_key: ''
 
 auth:
   registration_enabled: true
@@ -58,3 +62,7 @@ logger:
   max_backups: 3
   compress: true
   local_time: true
+
+yggdrasil:
+  server_name: Akari Yggdrasil
+  implementation_name: akari-yggdrasil

@@ -59,9 +59,17 @@ type JWTConfig struct {
 }
 
 type CaptchaConfig struct {
-	Enabled     bool   `mapstructure:"enabled"`
-	Type        string `mapstructure:"type"`
-	CachePrefix string `mapstructure:"cache_prefix"`
+	Enabled     bool             `mapstructure:"enabled"`
+	Provider    string           `mapstructure:"provider"` // "gocaptcha" | "turnstile"
+	Type        string           `mapstructure:"type"`     // used only by gocaptcha: click | rotate | slide
+	CachePrefix string           `mapstructure:"cache_prefix"`
+	Turnstile   TurnstileConfig  `mapstructure:"turnstile"`
+}
+
+// TurnstileConfig holds Cloudflare Turnstile credentials.
+type TurnstileConfig struct {
+	SiteKey   string `mapstructure:"site_key"`
+	SecretKey string `mapstructure:"secret_key"`
 }
 
 // AuthConfig controls user registration and email verification behavior.
@@ -188,8 +196,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.expiration", "24h")
 
 	v.SetDefault("captcha.enabled", false)
+	v.SetDefault("captcha.provider", "gocaptcha")
 	v.SetDefault("captcha.type", "click")
 	v.SetDefault("captcha.cache_prefix", "captcha:")
+	v.SetDefault("captcha.turnstile.site_key", "")
+	v.SetDefault("captcha.turnstile.secret_key", "")
 
 	v.SetDefault("smtp.host", "localhost")
 	v.SetDefault("smtp.port", "25")

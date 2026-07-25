@@ -1,10 +1,14 @@
 package captcha
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/golang/freetype/truetype"
@@ -14,6 +18,7 @@ import (
 	"github.com/wenlng/go-captcha-assets/resources/fonts/fzshengsksjw"
 	captchaimages "github.com/wenlng/go-captcha-assets/resources/images"
 	"github.com/wenlng/go-captcha-assets/resources/thumbs"
+	"github.com/wenlng/go-captcha-assets/resources/tiles"
 	"github.com/wenlng/go-captcha/v2/base/option"
 	"github.com/wenlng/go-captcha/v2/click"
 	"github.com/wenlng/go-captcha/v2/rotate"
@@ -24,6 +29,7 @@ import (
 type Service struct {
 	cfg    *config.CaptchaConfig
 	cache  cache.Cache
+	client *http.Client
 	click  click.Captcha
 	rotate rotate.Captcha
 	slide  slide.Captcha
@@ -32,10 +38,13 @@ type Service struct {
 // New creates a new captcha Service.
 func New(cfg *config.CaptchaConfig, c cache.Cache) *Service {
 	s := &Service{
-		cfg:   cfg,
-		cache: c,
+		cfg:    cfg,
+		cache:  c,
+		client: &http.Client{Timeout: 10 * time.Second},
 	}
-	s.init()
+	if cfg.Provider == "gocaptcha" {
+		s.init()
+	}
 	return s
 }
 
@@ -136,8 +145,23 @@ func (s *Service) newSlideCaptcha() slide.Captcha {
 		panic(fmt.Errorf("load captcha images: %w", err))
 	}
 
+	graphTiles, err := tiles.GetTiles()
+	if err != nil {
+		panic(fmt.Errorf("load captcha tiles: %w", err))
+	}
+
+	slideTiles := make([]*slide.GraphImage, 0, len(graphTiles))
+	for _, t := range graphTiles {
+		slideTiles = append(slideTiles, &slide.GraphImage{
+			OverlayImage: t.OverlayImage,
+			ShadowImage:  t.ShadowImage,
+			MaskImage:    t.MaskImage,
+		})
+	}
+
 	builder.SetResources(
 		slide.WithBackgrounds(bgImages),
+		slide.WithGraphImages(slideTiles),
 	)
 
 	return builder.Make()
@@ -151,6 +175,18 @@ func (s *Service) Generate(ctx context.Context) (map[string]any, error) {
 		return nil, nil
 	}
 
+	switch s.cfg.Provider {
+	case "turnstile":
+		return map[string]any{
+			"provider":  "turnstile",
+			"site_key":  s.cfg.Turnstile.SiteKey,
+		}, nil
+	default:
+		return s.generateGoCaptcha(ctx)
+	}
+}
+
+func (s *Service) generateGoCaptcha(ctx context.Context) (map[string]any, error) {
 	switch s.cfg.Type {
 	case "rotate":
 		return s.genRotate(ctx)
@@ -296,6 +332,43 @@ func (s *Service) Verify(ctx context.Context, captchaID string, userAnswer map[s
 		return true, nil
 	}
 
+	switch s.cfg.Provider {
+	case "turnstile":
+		return true, nil // handled by VerifyToken
+	default:
+		return s.verifyGoCaptcha(ctx, captchaID, userAnswer)
+	}
+}
+
+// VerifyToken verifies a Turnstile token against the Cloudflare API.
+func (s *Service) VerifyToken(ctx context.Context, token string) (bool, error) {
+	body, _ := json.Marshal(map[string]string{
+		"secret":   s.cfg.Turnstile.SecretKey,
+		"response": token,
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://challenges.cloudflare.com/turnstile/v0/siteverify", bytes.NewReader(body))
+	if err != nil {
+		return false, fmt.Errorf("create turnstile request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("call turnstile API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	var result struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return false, fmt.Errorf("parse turnstile response: %w", err)
+	}
+	return result.Success, nil
+}
+
+func (s *Service) verifyGoCaptcha(ctx context.Context, captchaID string, userAnswer map[string]any) (bool, error) {
 	if captchaID == "" {
 		return false, fmt.Errorf("captcha_id is required")
 	}

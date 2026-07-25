@@ -36,8 +36,16 @@ func NewHandler(svc *Service, mw *Middleware, cfg *HandlerConfig, captchaSvc *ca
 }
 
 // verifyCaptcha checks captcha if the service is enabled.
-func (h *Handler) verifyCaptcha(ctx *gin.Context, captchaID string, userAnswer map[string]any) bool {
+func (h *Handler) verifyCaptcha(ctx *gin.Context, captchaID string, userAnswer map[string]any, captchaToken string) bool {
 	if h.captchaSvc == nil || !h.captchaSvc.IsEnabled() {
+		return true
+	}
+	if captchaToken != "" {
+		pass, err := h.captchaSvc.VerifyToken(ctx.Request.Context(), captchaToken)
+		if err != nil || !pass {
+			response.BadRequest(ctx, "验证码验证失败")
+			return false
+		}
 		return true
 	}
 	if captchaID == "" || userAnswer == nil {
@@ -65,11 +73,11 @@ func (h *Handler) Register(ctx *gin.Context) {
 		return
 	}
 
-	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer) {
-		return
-	}
+if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
+			return
+		}
 
-	resp, err := h.svc.Register(ctx.Request.Context(), &req)
+		resp, err := h.svc.Register(ctx.Request.Context(), &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrRegistrationClosed):
@@ -96,11 +104,11 @@ func (h *Handler) Login(ctx *gin.Context) {
 		return
 	}
 
-	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer) {
-		return
-	}
+if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
+			return
+		}
 
-	resp, err := h.svc.Login(ctx.Request.Context(), &req)
+		resp, err := h.svc.Login(ctx.Request.Context(), &req)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
 			response.Unauthorized(ctx, err.Error())
@@ -249,7 +257,7 @@ func (h *Handler) ForgotPassword(ctx *gin.Context) {
 		return
 	}
 
-	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer) {
+	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
 		return
 	}
 
