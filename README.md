@@ -1,5 +1,9 @@
 # Akari
 
+<p align="left">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
+</p>
+
 Another Minecraft Yggdrasil API-Compatible Server
 
 ## Build Environment
@@ -19,3 +23,7 @@ make run             # Run the Go server
 pnpm lint            # Lint frontend
 make lint            # Lint all (frontend + Go)
 ```
+
+## License
+
+[MIT](LICENSE)
