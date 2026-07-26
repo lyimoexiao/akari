@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lyimoexiao/akari/internal/model"
 	"github.com/lyimoexiao/akari/pkg/response"
 )
 
@@ -60,9 +61,16 @@ func (m *Middleware) RequireAuth() gin.HandlerFunc {
 }
 
 // RequireEmailVerified requires the authenticated user to have verified
-// their email address. If email verification is disabled, this check is skipped.
+// their email address. Super admin users are exempt from this check.
+// If email verification is disabled, this check is skipped entirely.
 func (m *Middleware) RequireEmailVerified() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		// Super admin users are exempt from email verification.
+		if role := GetRole(ctx); role == model.RoleSuperAdmin {
+			ctx.Next()
+			return
+		}
+
 		userID, exists := ctx.Get(CtxKeyUserID)
 		if !exists {
 			response.Unauthorized(ctx, "需要认证")

@@ -102,34 +102,44 @@ func Setup(deps *Dependencies) *gin.Engine {
 	if deps.Auth != nil {
 		protected := v1.Group("")
 		protected.Use(deps.Auth.RequireAuth())
+
+		// Routes available without email verification (basic user info).
+		if deps.Handlers.Permission != nil {
+			protected.GET("/auth/permission", deps.Handlers.Permission.CurrentUser)
+		}
+
+		// Routes that require email verification when email_verification_enabled is true.
+		verified := protected.Group("")
+		verified.Use(deps.Auth.RequireEmailVerified())
+
 		if deps.Handlers.User != nil {
-			deps.Handlers.User.RegisterRoutes(protected)
+			deps.Handlers.User.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Role != nil {
-			deps.Handlers.Role.RegisterRoutes(protected)
+			deps.Handlers.Role.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Permission != nil {
-			deps.Handlers.Permission.RegisterRoutes(protected)
+			verified.GET("/permissions", deps.Handlers.Permission.Require(), deps.Handlers.Permission.List)
 		}
 		if deps.Handlers.RequestLog != nil && deps.Handlers.Permission != nil {
-			requestLogs := protected.Group("")
+			requestLogs := verified.Group("")
 			requestLogs.Use(deps.Handlers.Permission.Require())
 			deps.Handlers.RequestLog.RegisterRoutes(requestLogs)
 		}
 		if deps.Handlers.Sign != nil {
-			deps.Handlers.Sign.RegisterRoutes(protected)
+			deps.Handlers.Sign.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Score != nil {
-			deps.Handlers.Score.RegisterRoutes(protected)
+			deps.Handlers.Score.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Skinlib != nil {
-			deps.Handlers.Skinlib.RegisterRoutes(protected)
+			deps.Handlers.Skinlib.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Closet != nil {
-			deps.Handlers.Closet.RegisterRoutes(protected)
+			deps.Handlers.Closet.RegisterRoutes(verified)
 		}
 		if deps.Handlers.Yggdrasil != nil {
-			deps.Handlers.Yggdrasil.RegisterAppRoutes(protected)
+			deps.Handlers.Yggdrasil.RegisterAppRoutes(verified)
 		}
 	} else {
 		deps.Logger.Warn("auth middleware is nil, protected routes not registered")
