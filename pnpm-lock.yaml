@@ -125,6 +125,9 @@ importers:
       '@unocss/preset-icons':
         specifier: catalog:frontend
         version: 66.7.5
+      '@unocss/preset-web-fonts':
+        specifier: ^66.7.5
+        version: 66.7.5
       '@unocss/preset-wind4':
         specifier: catalog:frontend
         version: 66.7.5

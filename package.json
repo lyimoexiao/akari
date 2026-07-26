@@ -29,6 +29,7 @@
     "@tsconfig/node24": "catalog:dev",
     "@types/node": "catalog:dev",
     "@unocss/preset-icons": "catalog:frontend",
+    "@unocss/preset-web-fonts": "^66.7.5",
     "@unocss/preset-wind4": "catalog:frontend",
     "@vitejs/plugin-vue": "catalog:frontend",
     "@vue/tsconfig": "catalog:frontend",

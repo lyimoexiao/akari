@@ -63,10 +63,10 @@ async function selectAccount(key: string): Promise<void> {
     class="sticky top-0 z-10 transition-all duration-200"
     :class="appStore.isScrolled ? 'bg-[var(--n-color)]/88 shadow-sm backdrop-blur-md' : 'bg-[var(--n-color)]'"
   >
-    <div class="mx-auto h-12 max-w-320 flex items-center justify-between px-2 sm:px-4">
+    <div class="mx-auto h-16 flex items-center justify-between px-2 sm:px-4">
       <NButton text class="shrink-0 px-2" aria-label="返回首页" @click="router.push({ name: 'Home' })">
         <NBadge type="info" value="beta">
-          <NText strong class="text-4.5">
+          <NText strong class="text-5 mx-2 my-2 font-minecraft">
             Akari
           </NText>
         </NBadge>

@@ -32,26 +32,10 @@ const {
 const errorMessage = computed(() => error.value instanceof ApiRequestError
   ? error.value.message
   : error.value ? '账户信息加载失败' : null)
-
-async function logout(): Promise<void> {
-  await authStore.logout()
-  await router.replace({ name: 'Home' })
-}
 </script>
 
 <template>
   <WorkspacePage title="账户概览" :description="`欢迎回来，${authStore.username ?? '用户'}`">
-    <template #actions>
-      <NFlex>
-        <NButton v-if="authStore.canManageUsers" secondary @click="router.push({ name: 'AdminOverview' })">
-          管理后台
-        </NButton>
-        <NButton quaternary @click="logout">
-          退出登录
-        </NButton>
-      </NFlex>
-    </template>
-
     <NAlert v-if="errorMessage" type="error" class="mb-4">
       {{ errorMessage }}
       <template #action>

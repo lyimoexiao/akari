@@ -11,6 +11,8 @@ export default defineConfig({
     }),
   ],
   shortcuts: [],
-  rules: [],
+  rules: [
+    ['font-minecraft', { 'font-family': 'Minecraft' }],
+  ],
   safelist: [],
 })

@@ -4,6 +4,9 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+
+import './assets/fonts.css'
+import './assets/main.css'
 import 'virtual:uno.css'
 import 'go-captcha-vue/dist/style.css'
 

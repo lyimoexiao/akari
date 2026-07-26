@@ -10,7 +10,7 @@ const appStore = useAppStore()
   <NLayout :native-scrollbar="false" position="absolute">
     <NBackTop :visibility-height="1" class="z-1000" @update:show="appStore.isScrolled = $event" />
     <Header />
-    <main class="min-h-[calc(100dvh-96px)]">
+    <main class="min-h-100vh">
       <slot />
     </main>
     <Footer />

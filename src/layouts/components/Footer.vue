@@ -8,7 +8,7 @@ const year = computed(() => now.value.getFullYear())
 
 <template>
   <NLayoutFooter bordered>
-    <NFlex justify="space-between" align="center" class="mx-auto max-w-320 px-4 py-3 text-3" :wrap="true">
+    <NFlex justify="space-between" align="center" class="mx-auto max-w-320 px-4 py-4 text-3" :wrap="true">
       <NText depth="3">
         Copyright &copy; {{ year }} Akari.
       </NText>
