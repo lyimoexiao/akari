@@ -5,17 +5,22 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lyimoexiao/akari/pkg/cache"
+	"github.com/lyimoexiao/akari/pkg/captcha"
+	"github.com/lyimoexiao/akari/pkg/database"
+	"github.com/lyimoexiao/akari/pkg/logger"
+	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
 	Server    ServerConfig    `mapstructure:"server"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Cache     CacheConfig     `mapstructure:"cache"`
-	Logger    LoggerConfig    `mapstructure:"logger"`
+	Database  database.Config  `mapstructure:"database"`
+	Cache     cache.Config     `mapstructure:"cache"`
+	Logger    logger.Config     `mapstructure:"logger"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
-	Captcha   CaptchaConfig   `mapstructure:"captcha"`
-	SMTP      SMTPConfig      `mapstructure:"smtp"`
+	Captcha   captcha.Config  `mapstructure:"captcha"`
+	SMTP      smtp.Config     `mapstructure:"smtp"`
 	Auth      AuthConfig      `mapstructure:"auth"`
 	Yggdrasil YggdrasilConfig `mapstructure:"yggdrasil"`
 	Score     ScoreConfig     `mapstructure:"score"`
@@ -53,45 +58,10 @@ type ServerConfig struct {
 	ShutdownTimeout   int    `mapstructure:"shutdown_timeout"`
 }
 
-type LoggerConfig struct {
-	Level      string `mapstructure:"level"`
-	Format     string `mapstructure:"format"`
-	OutputPath string `mapstructure:"output_path"`
-	MaxSize    int    `mapstructure:"max_size"`
-	MaxAge     int    `mapstructure:"max_age"`
-	MaxBackups int    `mapstructure:"max_backups"`
-	Compress   bool   `mapstructure:"compress"`
-	LocalTime  bool   `mapstructure:"local_time"`
-}
-
-type DatabaseConfig struct {
-	Type     string `mapstructure:"type"`
-	DSN      string `mapstructure:"dsn"`
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	Name     string `mapstructure:"name"`
-}
-
 type JWTConfig struct {
 	Secret     string `mapstructure:"secret"`
 	Issuer     string `mapstructure:"issuer"`
 	Expiration string `mapstructure:"expiration"`
-}
-
-type CaptchaConfig struct {
-	Enabled     bool            `mapstructure:"enabled"`
-	Provider    string          `mapstructure:"provider"` // "gocaptcha" | "turnstile"
-	Type        string          `mapstructure:"type"`     // used only by gocaptcha: click | rotate | slide
-	CachePrefix string          `mapstructure:"cache_prefix"`
-	Turnstile   TurnstileConfig `mapstructure:"turnstile"`
-}
-
-// TurnstileConfig holds Cloudflare Turnstile credentials.
-type TurnstileConfig struct {
-	SiteKey   string `mapstructure:"site_key"`
-	SecretKey string `mapstructure:"secret_key"`
 }
 
 // AuthConfig controls user registration and email verification behavior.
@@ -101,39 +71,6 @@ type AuthConfig struct {
 	VerifyEmailTokenTTL      string `mapstructure:"verify_email_token_ttl"`
 	PasswordResetEnabled     bool   `mapstructure:"password_reset_enabled"`
 	PasswordResetTokenTTL    string `mapstructure:"password_reset_token_ttl"`
-}
-
-type SMTPConfig struct {
-	Host      string `mapstructure:"host"`
-	Port      string `mapstructure:"port"`
-	Username  string `mapstructure:"username"`
-	Password  string `mapstructure:"password"`
-	From      string `mapstructure:"from"`
-	SSL       bool   `mapstructure:"ssl"`
-	Timeout   int    `mapstructure:"timeout"`
-	QueueSize int    `mapstructure:"queue_size"`
-}
-
-type CacheConfig struct {
-	Type   string            `mapstructure:"type"` // memory | redis | file
-	Memory MemoryCacheConfig `mapstructure:"memory"`
-	Redis  RedisCacheConfig  `mapstructure:"redis"`
-	File   FileCacheConfig   `mapstructure:"file"`
-}
-
-type MemoryCacheConfig struct {
-	DefaultTTL string `mapstructure:"default_ttl"`
-	Size       int    `mapstructure:"size"`
-}
-
-type RedisCacheConfig struct {
-	Addr     string `mapstructure:"addr"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
-}
-
-type FileCacheConfig struct {
-	Dir string `mapstructure:"dir"`
 }
 
 // Load reads configuration from multiple sources with the following priority

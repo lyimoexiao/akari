@@ -10,11 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
-	"github.com/lyimoexiao/akari/internal/cache"
-	"github.com/lyimoexiao/akari/internal/captcha"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
-	"github.com/lyimoexiao/akari/internal/logger"
 	"github.com/lyimoexiao/akari/internal/permission"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
 	"github.com/lyimoexiao/akari/internal/requestlog"
@@ -22,15 +19,19 @@ import (
 	"github.com/lyimoexiao/akari/internal/role"
 	"github.com/lyimoexiao/akari/internal/router"
 	"github.com/lyimoexiao/akari/internal/routeradapter"
+	"github.com/lyimoexiao/akari/internal/score"
 	"github.com/lyimoexiao/akari/internal/scoreadapter"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/signadapter"
-	"github.com/lyimoexiao/akari/internal/smtp"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
+	"github.com/lyimoexiao/akari/pkg/cache"
+	"github.com/lyimoexiao/akari/pkg/captcha"
 	"github.com/lyimoexiao/akari/pkg/jwt"
+	"github.com/lyimoexiao/akari/pkg/logger"
+	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/pkg/util"
 	"github.com/lyimoexiao/akari/pkg/version"
 	"go.uber.org/zap"
@@ -107,6 +108,7 @@ func Initialize(cfgPath string) (*App, func(), error) {
 	scoreadapterRepository := ProvideScoreOperator(db)
 	signService := ProvideSignService(config, signadapterRepository, scoreadapterRepository)
 	signHandler := ProvideSignHandler(signService, sugaredLogger)
+	scoreHandler := ProvideScoreHandler(scoreadapterRepository, permissionMiddleware, sugaredLogger)
 	handlers := &router.Handlers{
 		Auth:       handler,
 		User:       userHandler,
@@ -115,6 +117,7 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		RequestLog: requestlogHandler,
 		Yggdrasil:  yggdrasilHandler,
 		Sign:       signHandler,
+		Score:      scoreHandler,
 	}
 	dependencies := &router.Dependencies{
 		Health:         healthChecker,
@@ -294,6 +297,18 @@ func ProvideUserService(db *gorm.DB) *user.Service {
 	})
 }
 
+func ProvideUserHandler(svc *user.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *user.Handler {
+	return user.NewHandler(svc, permissions, logger2)
+}
+
+func ProvideRoleService(manager *rbacadapter.Manager) *role.Service {
+	return role.NewService(role.Dependencies{Repository: manager, Policies: manager})
+}
+
+func ProvideRoleHandler(svc *role.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *role.Handler {
+	return role.NewHandler(svc, permissions, logger2)
+}
+
 func ProvideScoreOperator(db *gorm.DB) *scoreadapter.Repository {
 	return scoreadapter.NewRepository(db)
 }
@@ -320,16 +335,8 @@ func ProvideSignHandler(svc *sign.Service, logger2 *zap.SugaredLogger) *sign.Han
 	return sign.NewHandler(svc, logger2)
 }
 
-func ProvideUserHandler(svc *user.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *user.Handler {
-	return user.NewHandler(svc, permissions, logger2)
-}
-
-func ProvideRoleService(manager *rbacadapter.Manager) *role.Service {
-	return role.NewService(role.Dependencies{Repository: manager, Policies: manager})
-}
-
-func ProvideRoleHandler(svc *role.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *role.Handler {
-	return role.NewHandler(svc, permissions, logger2)
+func ProvideScoreHandler(ops *scoreadapter.Repository, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *score.Handler {
+	return score.NewHandler(ops, permissions, logger2)
 }
 
 func ProvideHealthChecker(db *gorm.DB, cacheBackend cache.Cache) router.HealthChecker {

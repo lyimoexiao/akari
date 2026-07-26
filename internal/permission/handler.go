@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
-	"github.com/lyimoexiao/akari/internal/response"
+	"github.com/lyimoexiao/akari/pkg/response"
 	"go.uber.org/zap"
 )
 

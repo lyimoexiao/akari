@@ -13,8 +13,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/lyimoexiao/akari/internal/config"
-	"github.com/lyimoexiao/akari/internal/logger"
+	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/pkg/util"
 )
 
@@ -34,7 +33,7 @@ type Cache interface {
 
 // New creates a single cache backend based on cache.type.
 // Supported types: "memory" (default), "redis", "file".
-func New(cfg *config.CacheConfig) Cache {
+func New(cfg *Config) Cache {
 	switch cfg.Type {
 	case "redis":
 		return newRedisCache(&cfg.Redis)
@@ -62,7 +61,7 @@ type memoryEntry struct {
 	ExpiresAt time.Time   `json:"expires_at"`
 }
 
-func newMemoryCache(cfg *config.MemoryCacheConfig) *memoryCache {
+func newMemoryCache(cfg *MemoryCacheConfig) *memoryCache {
 	ttl := util.ParseDuration(cfg.DefaultTTL, 5*time.Minute)
 	size := cfg.Size
 	if size <= 0 {
@@ -133,7 +132,7 @@ type redisCache struct {
 	client *redis.Client
 }
 
-func newRedisCache(cfg *config.RedisCacheConfig) *redisCache {
+func newRedisCache(cfg *RedisCacheConfig) *redisCache {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,
@@ -187,7 +186,7 @@ type fileEntry struct {
 	ExpiresAt time.Time   `json:"expires_at"`
 }
 
-func newFileCache(cfg *config.FileCacheConfig) *fileCache {
+func newFileCache(cfg *FileCacheConfig) *fileCache {
 	_ = os.MkdirAll(cfg.Dir, 0o755)
 	return &fileCache{dir: cfg.Dir}
 }

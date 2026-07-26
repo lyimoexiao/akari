@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lyimoexiao/akari/internal/response"
+	"github.com/lyimoexiao/akari/pkg/response"
 )
 
 const (

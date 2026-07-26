@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lyimoexiao/akari/internal/cache"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"gorm.io/gorm"
 )
 

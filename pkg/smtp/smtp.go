@@ -6,12 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/smtp"
+	smtplib "net/smtp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/lyimoexiao/akari/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -27,8 +26,8 @@ var (
 
 // Mailer queues email for bounded background SMTP delivery.
 type Mailer struct {
-	cfg     config.SMTPConfig
-	auth    smtp.Auth
+	cfg     Config
+	auth    smtplib.Auth
 	addr    string
 	timeout time.Duration
 	jobs    chan outboundMessage
@@ -46,10 +45,10 @@ type outboundMessage struct {
 }
 
 // New creates a Mailer and starts its delivery worker.
-func New(cfg *config.SMTPConfig, logger *zap.SugaredLogger) *Mailer {
-	var auth smtp.Auth
+func New(cfg *Config, logger *zap.SugaredLogger) *Mailer {
+	var auth smtplib.Auth
 	if cfg.Username != "" {
-		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+		auth = smtplib.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 	}
 	timeout := time.Duration(cfg.Timeout) * time.Second
 	if timeout <= 0 {
@@ -162,7 +161,7 @@ func (m *Mailer) deliver(parent context.Context, message outboundMessage) error 
 }
 
 func (m *Mailer) sendSTARTTLS(conn net.Conn, message outboundMessage) error {
-	client, err := smtp.NewClient(conn, m.cfg.Host)
+	client, err := smtplib.NewClient(conn, m.cfg.Host)
 	if err != nil {
 		return fmt.Errorf("smtp new client: %w", err)
 	}
@@ -178,7 +177,7 @@ func (m *Mailer) sendSSL(ctx context.Context, conn net.Conn, message outboundMes
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
 		return fmt.Errorf("smtp tls handshake: %w", err)
 	}
-	client, err := smtp.NewClient(tlsConn, m.cfg.Host)
+	client, err := smtplib.NewClient(tlsConn, m.cfg.Host)
 	if err != nil {
 		return fmt.Errorf("smtp new client: %w", err)
 	}
@@ -186,7 +185,7 @@ func (m *Mailer) sendSSL(ctx context.Context, conn net.Conn, message outboundMes
 	return m.sendMessage(client, message)
 }
 
-func (m *Mailer) sendMessage(client *smtp.Client, message outboundMessage) error {
+func (m *Mailer) sendMessage(client *smtplib.Client, message outboundMessage) error {
 	if m.auth != nil {
 		if err := client.Auth(m.auth); err != nil {
 			return fmt.Errorf("smtp auth: %w", err)

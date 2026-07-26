@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lyimoexiao/akari/internal/model"
-	"github.com/lyimoexiao/akari/internal/pagination"
+	"github.com/lyimoexiao/akari/pkg/pagination"
 )
 
 var (

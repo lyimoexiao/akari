@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
-	"github.com/lyimoexiao/akari/internal/middleware"
+	"github.com/lyimoexiao/akari/pkg/middleware"
 	"github.com/lyimoexiao/akari/internal/model"
 	"go.uber.org/zap"
 )

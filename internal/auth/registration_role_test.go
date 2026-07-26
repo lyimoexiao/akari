@@ -7,8 +7,7 @@ import (
 
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
-	"github.com/lyimoexiao/akari/internal/cache"
-	"github.com/lyimoexiao/akari/internal/config"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/model"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
@@ -33,7 +32,7 @@ func Test_Register_uses_configured_default_role(t *testing.T) {
 		t.Fatalf("create RBAC manager: %v", err)
 	}
 	roles := role.NewService(role.Dependencies{Repository: backend, Policies: backend})
-	cacheService := cache.New(&config.CacheConfig{Type: "memory"})
+	cacheService := cache.New(&cache.Config{Type: "memory"})
 	t.Cleanup(func() { _ = cacheService.Close() })
 	svc := auth.NewService(auth.Dependencies{
 		Users:  authadapter.NewUserRepository(db),

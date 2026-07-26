@@ -10,11 +10,11 @@ import (
 	"github.com/google/wire"
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
-	"github.com/lyimoexiao/akari/internal/cache"
-	"github.com/lyimoexiao/akari/internal/captcha"
+	"github.com/lyimoexiao/akari/pkg/cache"
+	"github.com/lyimoexiao/akari/pkg/captcha"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
-	"github.com/lyimoexiao/akari/internal/logger"
+	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/internal/permission"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
 	"github.com/lyimoexiao/akari/internal/requestlog"
@@ -26,7 +26,7 @@ import (
 	"github.com/lyimoexiao/akari/internal/score"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/signadapter"
-	"github.com/lyimoexiao/akari/internal/smtp"
+	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
@@ -226,15 +226,24 @@ func ProvideRequestLogHandler(svc *requestlog.Service, logger *zap.SugaredLogger
 }
 
 
-func ProvideScoreHandler(ops *scoreadapter.Repository, permissions *permission.Middleware, logger *zap.SugaredLogger) *score.Handler {
-	return score.NewHandler(ops, permissions, logger)
-}
 func ProvideUserService(db *gorm.DB) *user.Service {
 	return user.NewService(user.Dependencies{
 		Repository: useradapter.NewRepository(db),
 		Clock:      useradapter.Clock{},
 		Hasher:     useradapter.PasswordHasher{},
 	})
+}
+
+func ProvideUserHandler(svc *user.Service, permissions *permission.Middleware, logger *zap.SugaredLogger) *user.Handler {
+	return user.NewHandler(svc, permissions, logger)
+}
+
+func ProvideRoleService(manager *rbacadapter.Manager) *role.Service {
+	return role.NewService(role.Dependencies{Repository: manager, Policies: manager})
+}
+
+func ProvideRoleHandler(svc *role.Service, permissions *permission.Middleware, logger *zap.SugaredLogger) *role.Handler {
+	return role.NewHandler(svc, permissions, logger)
 }
 
 func ProvideScoreOperator(db *gorm.DB) *scoreadapter.Repository {

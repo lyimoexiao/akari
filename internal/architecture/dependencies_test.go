@@ -14,7 +14,7 @@ import (
 var forbiddenImports = map[string]struct{}{
 	"github.com/casbin/casbin/v3":                {},
 	"github.com/casbin/casbin/v3/model":          {},
-	"github.com/lyimoexiao/akari/internal/cache": {},
+	"github.com/lyimoexiao/akari/pkg/cache": {},
 	"gorm.io/gorm": {},
 }
 

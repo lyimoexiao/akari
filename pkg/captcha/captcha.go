@@ -12,9 +12,8 @@ import (
 	"time"
 
 	"github.com/golang/freetype/truetype"
-	"github.com/lyimoexiao/akari/internal/cache"
-	"github.com/lyimoexiao/akari/internal/config"
-	"github.com/lyimoexiao/akari/internal/logger"
+	"github.com/lyimoexiao/akari/pkg/cache"
+	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/wenlng/go-captcha-assets/resources/fonts/fzshengsksjw"
 	captchaimages "github.com/wenlng/go-captcha-assets/resources/images"
 	"github.com/wenlng/go-captcha-assets/resources/thumbs"
@@ -27,7 +26,7 @@ import (
 
 // Service manages captcha generation and verification.
 type Service struct {
-	cfg    *config.CaptchaConfig
+	cfg    *Config
 	cache  cache.Cache
 	client *http.Client
 	click  click.Captcha
@@ -36,7 +35,7 @@ type Service struct {
 }
 
 // New creates a new captcha Service.
-func New(cfg *config.CaptchaConfig, c cache.Cache) *Service {
+func New(cfg *Config, c cache.Cache) *Service {
 	s := &Service{
 		cfg:    cfg,
 		cache:  c,

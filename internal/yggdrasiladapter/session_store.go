@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/lyimoexiao/akari/internal/cache"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 )
 

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
-	"github.com/lyimoexiao/akari/internal/pagination"
+	"github.com/lyimoexiao/akari/pkg/pagination"
 )
 
 // ListQuery is the query parameters for listing users.

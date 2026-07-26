@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lyimoexiao/akari/internal/cache"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"go.uber.org/zap"
 )
 

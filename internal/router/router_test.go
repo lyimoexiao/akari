@@ -11,8 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
-	"github.com/lyimoexiao/akari/internal/cache"
-	"github.com/lyimoexiao/akari/internal/config"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/permission"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
@@ -59,7 +58,7 @@ type healthResponse struct {
 func Test_Health_returns_ok_when_database_and_cache_are_available(t *testing.T) {
 	// Given
 	db := newHealthTestDB(t)
-	engine := newHealthTestEngine(t, db, cache.New(&config.CacheConfig{}))
+	engine := newHealthTestEngine(t, db, cache.New(&cache.Config{}))
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	responseRecorder := httptest.NewRecorder()
 
@@ -89,7 +88,7 @@ func Test_Health_returns_service_unavailable_when_database_is_unavailable(t *tes
 	if err := sqlDB.Close(); err != nil {
 		t.Fatalf("close database: %v", err)
 	}
-	engine := newHealthTestEngine(t, db, cache.New(&config.CacheConfig{}))
+	engine := newHealthTestEngine(t, db, cache.New(&cache.Config{}))
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	responseRecorder := httptest.NewRecorder()
 

@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lyimoexiao/akari/internal/config"
 	"go.uber.org/zap"
 )
 
 func Test_Mailer_Send_returns_after_enqueue_when_SMTP_stalls(t *testing.T) {
 	// Given
 	server := newStallingServer(t)
-	mailer := New(&config.SMTPConfig{
+	mailer := New(&Config{
 		Host:      server.host,
 		Port:      server.port,
 		From:      "sender@example.com",
@@ -42,7 +41,7 @@ func Test_Mailer_Send_returns_after_enqueue_when_SMTP_stalls(t *testing.T) {
 func Test_Mailer_delivery_closes_stalled_connection_after_timeout(t *testing.T) {
 	// Given
 	server := newStallingServer(t)
-	mailer := New(&config.SMTPConfig{
+	mailer := New(&Config{
 		Host:      server.host,
 		Port:      server.port,
 		From:      "sender@example.com",
@@ -68,7 +67,7 @@ func Test_Mailer_delivery_closes_stalled_connection_after_timeout(t *testing.T) 
 func Test_Mailer_Send_rejects_when_bounded_queue_is_full(t *testing.T) {
 	// Given
 	server := newStallingServer(t)
-	mailer := New(&config.SMTPConfig{
+	mailer := New(&Config{
 		Host:      server.host,
 		Port:      server.port,
 		From:      "sender@example.com",

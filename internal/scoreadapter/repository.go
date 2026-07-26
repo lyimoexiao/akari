@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
-	"github.com/lyimoexiao/akari/internal/pagination"
+	"github.com/lyimoexiao/akari/pkg/pagination"
 	"github.com/lyimoexiao/akari/internal/score"
 	"gorm.io/gorm"
 )

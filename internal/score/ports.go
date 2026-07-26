@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/lyimoexiao/akari/internal/pagination"
+	"github.com/lyimoexiao/akari/pkg/pagination"
 )
 
 // LogEntry represents a single score mutation record.

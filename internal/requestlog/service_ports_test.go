@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	requestmiddleware "github.com/lyimoexiao/akari/internal/middleware"
+	requestmiddleware "github.com/lyimoexiao/akari/pkg/middleware"
 	"github.com/lyimoexiao/akari/internal/model"
 	"github.com/lyimoexiao/akari/internal/requestlog"
 	"go.uber.org/zap"
