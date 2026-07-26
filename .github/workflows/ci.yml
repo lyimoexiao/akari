@@ -15,21 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: latest
 
@@ -40,7 +40,7 @@ jobs:
           echo "store=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: pnpm-cache
         with:
           path: ${{ steps.pnpm-store.outputs.store }}
@@ -64,6 +64,15 @@ jobs:
         run: make build BIN=bin/server-ci
         env:
           VERSION: ${{ github.ref_name == 'main' && github.sha || '' }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-${{ runner.os }}
+          path: |
+            bin/server-ci
+            web/dist/
+          if-no-files-found: error
 
       - name: Run Go tests
         run: go test ./... -v -race -count=1
