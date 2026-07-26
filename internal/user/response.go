@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/pagination"
 )
 
 type Item struct {
@@ -15,13 +16,9 @@ type Item struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
-type ListResp struct {
-	Items      []Item `json:"items"`
-	Total      int64  `json:"total"`
-	Page       int    `json:"page"`
-	PageSize   int    `json:"page_size"`
-	TotalPages int    `json:"total_pages"`
-}
+// ListResp is the paginated list response for users.
+// Deprecated: use pagination.Paged[Item] directly.
+type ListResp = pagination.Paged[Item]
 
 func toItem(user *model.User) Item {
 	return Item{

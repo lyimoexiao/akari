@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/pagination"
 	"github.com/lyimoexiao/akari/internal/user"
 	"gorm.io/gorm"
 )
@@ -30,9 +31,8 @@ func (repository *Repository) List(ctx context.Context, query user.ListQuery) ([
 		return nil, 0, fmt.Errorf("count users: %w", err)
 	}
 	var users []model.User
-	offset := (query.Page - 1) * query.PageSize
 	if err := dbQuery.Preload("Roles").Order("created_at DESC").
-		Offset(offset).Limit(query.PageSize).Find(&users).Error; err != nil {
+		Scopes(pagination.ApplyOffsetLimit(query.Paging)).Find(&users).Error; err != nil {
 		return nil, 0, fmt.Errorf("list users: %w", err)
 	}
 	return users, total, nil

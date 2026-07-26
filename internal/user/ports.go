@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/pagination"
 )
 
+// ListQuery is the query parameters for listing users.
 type ListQuery struct {
-	Search   string
-	Page     int
-	PageSize int
+	Search string
+	pagination.Paging
 }
 
 type Repository interface {

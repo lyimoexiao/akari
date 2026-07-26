@@ -5,6 +5,8 @@ package score
 import (
 	"context"
 	"time"
+
+	"github.com/lyimoexiao/akari/internal/pagination"
 )
 
 // LogEntry represents a single score mutation record.
@@ -18,18 +20,11 @@ type LogEntry struct {
 
 // LogQuery defines pagination for score log queries.
 type LogQuery struct {
-	Page     int
-	PageSize int
+	pagination.Paging
 }
 
 // LogList is the paginated result of score log queries.
-type LogList struct {
-	Items      []LogEntry `json:"items"`
-	Total      int64      `json:"total"`
-	Page       int        `json:"page"`
-	PageSize   int        `json:"page_size"`
-	TotalPages int        `json:"total_pages"`
-}
+type LogList = pagination.Paged[LogEntry]
 
 // Operator handles atomic score mutations for a user.
 type Operator interface {

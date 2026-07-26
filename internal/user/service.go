@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/pagination"
 )
 
 var (
@@ -30,14 +30,12 @@ func NewService(dependencies Dependencies) *Service {
 }
 
 func (s *Service) ListUsers(ctx context.Context, req ListUsersReq) (*ListResp, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 || req.PageSize > 100 {
-		req.PageSize = 20
-	}
+	paging := pagination.Paging{Page: req.Page, PageSize: req.PageSize}
+	paging.Normalise()
+
 	users, total, err := s.repository.List(ctx, ListQuery{
-		Search: req.Query, Page: req.Page, PageSize: req.PageSize,
+		Search: req.Query,
+		Paging: paging,
 	})
 	if err != nil {
 		return nil, err
@@ -46,10 +44,7 @@ func (s *Service) ListUsers(ctx context.Context, req ListUsersReq) (*ListResp, e
 	for index := range users {
 		items[index] = toItem(&users[index])
 	}
-	return &ListResp{
-		Items: items, Total: total, Page: req.Page, PageSize: req.PageSize,
-		TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
-	}, nil
+	return pagination.NewPaged(items, total, paging), nil
 }
 
 func (s *Service) VerifyEmail(ctx context.Context, callerID uint, req VerifyEmailReq) error {

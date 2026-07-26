@@ -8,10 +8,10 @@ package scoreadapter
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/model"
+	"github.com/lyimoexiao/akari/internal/pagination"
 	"github.com/lyimoexiao/akari/internal/score"
 	"gorm.io/gorm"
 )
@@ -140,12 +140,7 @@ func (r *Repository) ScoreInfo(ctx context.Context, userID uint) (int64, *time.T
 }
 
 func (r *Repository) ListLogs(ctx context.Context, userID uint, query score.LogQuery) (*score.LogList, error) {
-	if query.Page < 1 {
-		query.Page = 1
-	}
-	if query.PageSize < 1 || query.PageSize > 100 {
-		query.PageSize = 20
-	}
+	query.Normalise()
 
 	dbQuery := r.db.WithContext(ctx).Model(&model.ScoreLog{}).
 		Where("user_id = ?", userID)
@@ -156,9 +151,8 @@ func (r *Repository) ListLogs(ctx context.Context, userID uint, query score.LogQ
 	}
 
 	var logs []model.ScoreLog
-	offset := (query.Page - 1) * query.PageSize
 	if err := dbQuery.Order("id DESC").
-		Offset(offset).Limit(query.PageSize).Find(&logs).Error; err != nil {
+		Scopes(pagination.ApplyOffsetLimit(query.Paging)).Find(&logs).Error; err != nil {
 		return nil, fmt.Errorf("list score logs: %w", err)
 	}
 
@@ -173,11 +167,5 @@ func (r *Repository) ListLogs(ctx context.Context, userID uint, query score.LogQ
 		}
 	}
 
-	return &score.LogList{
-		Items:      items,
-		Total:      total,
-		Page:       query.Page,
-		PageSize:   query.PageSize,
-		TotalPages: int(math.Ceil(float64(total) / float64(query.PageSize))),
-	}, nil
+	return pagination.NewPaged(items, total, query.Paging), nil
 }

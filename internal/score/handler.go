@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
+	"github.com/lyimoexiao/akari/internal/pagination"
 	"github.com/lyimoexiao/akari/internal/response"
 	"go.uber.org/zap"
 )
@@ -52,7 +53,7 @@ func (h *Handler) ScoreHistory(ctx *gin.Context) {
 	}
 
 	list, err := h.ops.ListLogs(ctx.Request.Context(), userID, LogQuery{
-		Page: req.Page, PageSize: req.PageSize,
+		Paging: pagination.Paging{Page: req.Page, PageSize: req.PageSize},
 	})
 	if err != nil {
 		h.logger.Errorw("score history failed", "user_id", userID, "error", err)
@@ -77,7 +78,7 @@ func (h *Handler) ScoreHistoryByUser(ctx *gin.Context) {
 	}
 
 	list, err := h.ops.ListLogs(ctx.Request.Context(), uint(targetID), LogQuery{
-		Page: req.Page, PageSize: req.PageSize,
+		Paging: pagination.Paging{Page: req.Page, PageSize: req.PageSize},
 	})
 	if err != nil {
 		h.logger.Errorw("score history by user failed", "target_id", targetID, "error", err)
