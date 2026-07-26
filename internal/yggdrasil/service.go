@@ -19,6 +19,7 @@ var (
 	ErrTokenExpired       = errors.New("token expired")
 	ErrProfileNotFound    = errors.New("profile not found")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrTextureNotFound    = errors.New("texture not found")
 	ErrEmailNotVerified   = errors.New("email not verified")
 	ErrTokenLimitReached  = errors.New("token limit reached")
 )
@@ -183,6 +184,108 @@ func toProfileResp(profile *YggdrasilProfile) ProfileResp {
 	return ProfileResp{ID: formatUUIDWithoutDashes(profile.UUID), Name: profile.Name}
 }
 
+// ── Profile Texture Management ──
+
+// SetSkin sets the active skin texture for the user's first profile.
+func (s *Service) SetSkin(ctx context.Context, userID uint, textureTID uint) error {
+	profile, err := s.getProfileByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify the texture exists and is of a valid skin type
+	texture, err := s.repository.TextureByID(ctx, textureTID)
+	if err != nil {
+		return fmt.Errorf("check texture: %w", err)
+	}
+	if texture == nil {
+		return ErrTextureNotFound
+	}
+	if texture.Type != "steve" && texture.Type != "alex" {
+		return fmt.Errorf("纹理类型不是皮肤")
+	}
+
+	// Update model based on texture type
+	modelType := "default"
+	if texture.Type == "alex" {
+		modelType = "slim"
+	}
+
+	if err := s.repository.UpdateProfileSkin(ctx, profile.ID, &textureTID); err != nil {
+		return fmt.Errorf("update profile skin: %w", err)
+	}
+	// Also update the profile model
+	_ = s.repository.UpdateProfileModel(ctx, profile.ID, modelType)
+
+	return nil
+}
+
+// SetCape sets the active cape texture for the user's first profile.
+func (s *Service) SetCape(ctx context.Context, userID uint, textureTID uint) error {
+	profile, err := s.getProfileByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify the texture exists and is a cape
+	texture, err := s.repository.TextureByID(ctx, textureTID)
+	if err != nil {
+		return fmt.Errorf("check texture: %w", err)
+	}
+	if texture == nil {
+		return ErrTextureNotFound
+	}
+	if texture.Type != "cape" {
+		return fmt.Errorf("纹理类型不是披风")
+	}
+
+	if err := s.repository.UpdateProfileCape(ctx, profile.ID, &textureTID); err != nil {
+		return fmt.Errorf("update profile cape: %w", err)
+	}
+	return nil
+}
+
+// ClearSkin removes the active skin from the user's first profile.
+func (s *Service) ClearSkin(ctx context.Context, userID uint) error {
+	profile, err := s.getProfileByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repository.UpdateProfileSkin(ctx, profile.ID, nil); err != nil {
+		return fmt.Errorf("clear profile skin: %w", err)
+	}
+	return nil
+}
+
+// ClearCape removes the active cape from the user's first profile.
+func (s *Service) ClearCape(ctx context.Context, userID uint) error {
+	profile, err := s.getProfileByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repository.UpdateProfileCape(ctx, profile.ID, nil); err != nil {
+		return fmt.Errorf("clear profile cape: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) getProfileByUserID(ctx context.Context, userID uint) (*YggdrasilProfile, error) {
+	user, err := s.findUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := s.getProfilesForUser(ctx, user.Email)
+	if err != nil {
+		return nil, err
+	}
+	if len(profiles) == 0 {
+		return nil, ErrProfileNotFound
+	}
+	return &profiles[0], nil
+}
+
 type texturesPayload struct {
 	Timestamp   int64          `json:"timestamp"`
 	ProfileID   string         `json:"profileId"`
@@ -190,12 +293,47 @@ type texturesPayload struct {
 	Textures    map[string]any `json:"textures"`
 }
 
-func (s *Service) buildTexturesProperty(profileID, profileName string, sign bool) Property {
+func (s *Service) buildTexturesProperty(ctx context.Context, profile *YggdrasilProfile, sign bool) Property {
+	textures := map[string]any{}
+
+	// Resolve skin texture
+	if profile.TextureSkinID != nil {
+		skin, err := s.repository.TextureByID(ctx, *profile.TextureSkinID)
+		if err == nil && skin != nil {
+			modelType := "default"
+			if skin.Type == "alex" {
+				modelType = "slim"
+			}
+			texURL := skin.URL
+			if texURL == "" {
+				texURL = s.textureURL(skin.Hash)
+			}
+			textures["SKIN"] = map[string]any{
+				"url":      texURL,
+				"metadata": map[string]string{"model": modelType},
+			}
+		}
+	}
+
+	// Resolve cape texture
+	if profile.TextureCapeID != nil {
+		cape, err := s.repository.TextureByID(ctx, *profile.TextureCapeID)
+		if err == nil && cape != nil {
+			texURL := cape.URL
+			if texURL == "" {
+				texURL = s.textureURL(cape.Hash)
+			}
+			textures["CAPE"] = map[string]any{
+				"url": texURL,
+			}
+		}
+	}
+
 	payload := texturesPayload{
 		Timestamp:   time.Now().UnixMilli(),
-		ProfileID:   formatUUIDWithoutDashes(profileID),
-		ProfileName: profileName,
-		Textures:    map[string]any{},
+		ProfileID:   formatUUIDWithoutDashes(profile.UUID),
+		ProfileName: profile.Name,
+		Textures:    textures,
 	}
 	raw, _ := json.Marshal(payload)
 	property := Property{
@@ -215,8 +353,16 @@ func (s *Service) buildTexturesProperty(profileID, profileName string, sign bool
 	return property
 }
 
-func (s *Service) profileWithTextures(profile *YggdrasilProfile, sign bool) ProfileResp {
+func (s *Service) profileWithTextures(ctx context.Context, profile *YggdrasilProfile, sign bool) ProfileResp {
 	response := toProfileResp(profile)
-	response.Properties = []Property{s.buildTexturesProperty(profile.UUID, profile.Name, sign)}
+	response.Properties = []Property{s.buildTexturesProperty(ctx, profile, sign)}
 	return response
+}
+
+func (s *Service) textureURL(hash string) string {
+	base := s.settings.TextureBaseURL
+	if base == "" {
+		base = "http://" + s.settings.ServerName
+	}
+	return fmt.Sprintf("%s/api/v1/raw/%s", base, hash)
 }

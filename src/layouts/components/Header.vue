@@ -25,6 +25,7 @@ const accountOptions = computed<DropdownOption[]>(() => {
 
   return [
     { label: '账户中心', key: 'account', icon: () => h('span', { class: 'i-ph-user-circle-duotone' }) },
+    { label: '我的衣橱', key: 'closet', icon: () => h('span', { class: 'i-iconoir-closet' }) },
     ...(authStore.canManageUsers
       ? [{ label: '管理后台', key: 'admin', icon: () => h('span', { class: 'i-ph-gauge-duotone' }) }]
       : []),
@@ -47,6 +48,9 @@ async function selectAccount(key: string): Promise<void> {
       return
     case 'account':
       await router.push({ name: 'UserHome' })
+      return
+    case 'closet':
+      await router.push({ name: 'UserCloset' })
       return
     case 'admin':
       await router.push({ name: 'AdminOverview' })

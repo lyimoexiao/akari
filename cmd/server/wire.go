@@ -3,6 +3,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/lyimoexiao/akari/internal/authadapter"
 	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/pkg/captcha"
+	"github.com/lyimoexiao/akari/internal/closet"
+	"github.com/lyimoexiao/akari/internal/closetadapter"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/pkg/logger"
@@ -26,12 +29,15 @@ import (
 	"github.com/lyimoexiao/akari/internal/score"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/signadapter"
+	"github.com/lyimoexiao/akari/internal/skinlib"
+	"github.com/lyimoexiao/akari/internal/textureadapter"
 	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
 	"github.com/lyimoexiao/akari/pkg/jwt"
+	"github.com/lyimoexiao/akari/pkg/response"
 	"github.com/lyimoexiao/akari/pkg/util"
 	"github.com/lyimoexiao/akari/pkg/version"
 	"go.uber.org/zap"
@@ -80,6 +86,13 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		ProvideSignService,
 		ProvideSignHandler,
 		ProvideScoreHandler,
+		ProvideSkinlibService,
+		ProvideSkinlibHandler,
+		ProvideTextureFileStorage,
+		ProvideTextureChecker,
+		ProvideClosetService,
+		ProvideClosetHandler,
+		ProvideTextureServer,
 		wire.Struct(new(router.Dependencies), "*"),
 		ProvideEngine,
 		wire.Struct(new(App), "Config", "Engine", "Logger", "Mailer", "CaptchaSvc"),
@@ -296,12 +309,87 @@ func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, log
 			ServerName:               cfg.Yggdrasil.ServerName,
 			ImplementationName:       cfg.Yggdrasil.ImplementationName,
 			ImplementationVersion:    version.Version,
+			TextureBaseURL:           cfg.Server.BaseURL,
 		},
 	})
 }
 
 func ProvideYggdrasilHandler(svc *yggdrasil.Service, logger *zap.SugaredLogger) *yggdrasil.Handler {
 	return yggdrasil.NewHandler(svc, logger)
+}
+
+func ProvideTextureFileStorage(cfg *config.Config) *textureadapter.FileStorage {
+	return textureadapter.NewFileStorage(cfg.Storage.Dir)
+}
+
+func ProvideTextureChecker(db *gorm.DB) *textureadapter.TextureChecker {
+	return textureadapter.NewTextureChecker(db)
+}
+
+func ProvideSkinlibService(
+	db *gorm.DB,
+	storage *textureadapter.FileStorage,
+	scoreOps *scoreadapter.Repository,
+	cfg *config.Config,
+) *skinlib.Service {
+	return skinlib.NewService(skinlib.Dependencies{
+		Repository:    textureadapter.NewRepository(db),
+		Storage:       storage,
+		ScoreOps:      scoreOps,
+		ClosetAdder:   closetadapter.NewRepository(db),
+		ClosetCleaner: closetadapter.NewRepository(db),
+		BaseURL:       cfg.Server.BaseURL,
+		AwardUpload:   cfg.Score.AwardPerUpload,
+	})
+}
+
+func ProvideSkinlibHandler(svc *skinlib.Service, permissions *permission.Middleware, logger *zap.SugaredLogger) *skinlib.Handler {
+	return skinlib.NewHandler(svc, permissions, logger)
+}
+
+func ProvideClosetService(
+	db *gorm.DB,
+	textureChecker *textureadapter.TextureChecker,
+	scoreOps *scoreadapter.Repository,
+	cfg *config.Config,
+) *closet.Service {
+	return closet.NewService(closet.Dependencies{
+		Repository:          closetadapter.NewRepository(db),
+		TextureRepo:         textureChecker,
+		TextureDeleter:      textureChecker,
+		ProfileCleaner:      yggdrasiladapter.NewRepository(db),
+		ScoreOps:            scoreOps,
+		CostPerItem:         cfg.Score.CostPerClosetItem,
+		ReturnScoreOnRemove: cfg.Score.ReturnScoreOnRemove,
+		AwardPerLike:        cfg.Score.AwardPerLike,
+	})
+}
+
+func ProvideClosetHandler(svc *closet.Service, permissions *permission.Middleware, logger *zap.SugaredLogger) *closet.Handler {
+	return closet.NewHandler(svc, permissions, logger)
+}
+
+func ProvideTextureServer(cfg *config.Config) router.TextureFileHandler {
+	dir := cfg.Storage.Dir
+	return func(ctx *gin.Context) {
+		hash := ctx.Param("hash")
+		if hash == "" {
+			response.BadRequest(ctx, "缺少 hash 参数")
+			return
+		}
+		if len(hash) < 2 {
+			response.BadRequest(ctx, "无效的 hash")
+			return
+		}
+
+		// Build file path: dir/hash[:2]/hash
+		filePath := filepath.Join(dir, hash[:2], hash)
+		// Set correct content type for Minecraft client
+		ctx.Header("Content-Type", "image/png")
+		// Add CORS headers for cross-origin texture loading
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.File(filePath)
+	}
 }
 
 func setGinMode(mode string) {

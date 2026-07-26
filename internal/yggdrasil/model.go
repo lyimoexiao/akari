@@ -7,13 +7,15 @@ import "time"
 // YggdrasilProfile maps a Minecraft profile (角色) to a user.
 // UUID is offline-compatible: MD5("OfflinePlayer:" + name).
 type YggdrasilProfile struct {
-	ID        uint      `gorm:"primaryKey" json:"-"`
-	UUID      string    `gorm:"uniqueIndex;size:36;not null" json:"uuid"`
-	Name      string    `gorm:"uniqueIndex;size:64;not null" json:"name"`
-	UserEmail string    `gorm:"index;size:255;not null" json:"user_email"`
-	Model     string    `gorm:"size:16;default:default" json:"model"` // default or slim
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey" json:"-"`
+	UUID          string    `gorm:"uniqueIndex;size:36;not null" json:"uuid"`
+	Name          string    `gorm:"uniqueIndex;size:64;not null" json:"name"`
+	UserEmail     string    `gorm:"index;size:255;not null" json:"user_email"`
+	Model         string    `gorm:"size:16;default:default" json:"model"` // default or slim
+	TextureSkinID *uint     `gorm:"index" json:"texture_skin_id,omitempty"`
+	TextureCapeID *uint     `gorm:"index" json:"texture_cape_id,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // YggdrasilToken stores an access token for Yggdrasil auth.
@@ -140,15 +142,29 @@ type JoinReq struct {
 // ── Profiles batch ──
 // (body: []string)
 
-// ── User Status (web UI) ──
+	// ── User Status (web UI) ──
 
 type UserStatusResp struct {
-	HasProfile  bool    `json:"has_profile"`
-	ProfileUUID string  `json:"profile_uuid,omitempty"`
-	ProfileName string  `json:"profile_name,omitempty"`
-	LastLoginAt *string `json:"last_login_at,omitempty"`
-	LastLoginIP string  `json:"last_login_ip,omitempty"`
+	HasProfile   bool    `json:"has_profile"`
+	ProfileUUID  string  `json:"profile_uuid,omitempty"`
+	ProfileName  string  `json:"profile_name,omitempty"`
+	TextureSkinID *uint  `json:"texture_skin_id,omitempty"`
+	TextureCapeID *uint  `json:"texture_cape_id,omitempty"`
+	LastLoginAt  *string `json:"last_login_at,omitempty"`
+	LastLoginIP  string  `json:"last_login_ip,omitempty"`
 }
+
+// ── Profile texture management (app API) ──
+
+type SetSkinReq struct {
+	TextureTID uint `json:"texture_tid"`
+}
+
+type SetCapeReq struct {
+	TextureTID uint `json:"texture_tid"`
+}
+
+type ClearCapeReq struct{}
 
 // ── API Metadata ──
 

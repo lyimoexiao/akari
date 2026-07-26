@@ -21,7 +21,7 @@ export function useNaiveTheme() {
 
   const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     common: {
-      baseColor: '#FFFFFF80',
+      // baseColor: '#FFFFFF80',
     },
   }))
 

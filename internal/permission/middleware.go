@@ -55,3 +55,14 @@ func (middleware *Middleware) Require() gin.HandlerFunc {
 		ctx.Next()
 	}
 }
+
+// HasPermission checks whether the current user has a specific permission identifier.
+// Unlike Require(), this does not abort the request — it's meant for use inside handlers
+// where behavior varies by permission level (e.g., user vs staff).
+func (middleware *Middleware) HasPermission(ctx context.Context, userID uint, object, action string) (bool, string, error) {
+	return middleware.authorizer.EnforceUser(ctx, Check{
+		UserID: userID,
+		Object: object,
+		Action: action,
+	})
+}

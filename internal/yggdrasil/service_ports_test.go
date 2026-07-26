@@ -101,6 +101,22 @@ func (f *fakeRepository) LastLoginToken(context.Context, string) (YggdrasilToken
 	return YggdrasilToken{}, ErrInvalidToken
 }
 
+func (f *fakeRepository) UpdateProfileSkin(_ context.Context, _ uint, _ *uint) error {
+	return nil
+}
+
+func (f *fakeRepository) UpdateProfileCape(_ context.Context, _ uint, _ *uint) error {
+	return nil
+}
+
+func (f *fakeRepository) UpdateProfileModel(_ context.Context, _ uint, _ string) error {
+	return nil
+}
+
+func (f *fakeRepository) TextureByID(_ context.Context, _ uint) (*model.Texture, error) {
+	return nil, nil
+}
+
 func Test_Service_Authenticate_uses_repository_port_without_database(t *testing.T) {
 	// Given
 	password, err := bcrypt.HashPassword("Secret123")

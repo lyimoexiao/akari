@@ -11,7 +11,6 @@ const route = useRoute()
 const authStore = useAuthStore()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isDesktop = breakpoints.greaterOrEqual('lg')
-const isTablet = breakpoints.greaterOrEqual('sm')
 
 const menuOptions = computed<MenuOption[]>(() => [
   {
@@ -41,10 +40,6 @@ const menuOptions = computed<MenuOption[]>(() => [
 ])
 
 const activeKey = computed(() => typeof route.name === 'string' ? route.name : 'AdminOverview')
-const selectOptions = computed<SelectOption[]>(() => menuOptions.value.map(option => ({
-  label: String(option.label),
-  value: String(option.key),
-})))
 
 function navigate(name: string): void {
   void router.push({ name })
@@ -61,11 +56,11 @@ function navigate(name: string): void {
         <NMenu class="mt-3" :value="activeKey" :options="menuOptions" @update:value="navigate" />
       </aside>
 
-      <NScrollbar v-else-if="isTablet" x-scrollable class="border-b border-[var(--n-border-color)]">
+      <NScrollbar v-else x-scrollable class="border-b border-[var(--n-border-color)]">
         <NMenu :value="activeKey" :options="menuOptions" mode="horizontal" @update:value="navigate" />
       </NScrollbar>
 
-      <div v-else class="flex items-center gap-3 border-b border-[var(--n-border-color)] px-4 py-3">
+      <!-- <div v-else class="flex items-center gap-3 border-b border-[var(--n-border-color)] px-4 py-3">
         <NText class="shrink-0 text-3 font-600">
           管理页面
         </NText>
@@ -75,7 +70,7 @@ function navigate(name: string): void {
           :options="selectOptions"
           @update:value="navigate"
         />
-      </div>
+      </div> -->
 
       <div class="min-w-0 flex-1">
         <RouterView />

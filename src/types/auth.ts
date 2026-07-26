@@ -31,6 +31,8 @@ export const yggdrasilStatusSchema = z.object({
   has_profile: z.boolean(),
   profile_uuid: z.string().optional(),
   profile_name: z.string().optional(),
+  texture_skin_id: z.number().int().nullable().optional(),
+  texture_cape_id: z.number().int().nullable().optional(),
   last_login_at: z.string().optional(),
   last_login_ip: z.string().optional(),
 })

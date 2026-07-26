@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 
@@ -15,15 +16,16 @@ import (
 
 type Config struct {
 	Server    ServerConfig    `mapstructure:"server"`
-	Database  database.Config  `mapstructure:"database"`
-	Cache     cache.Config     `mapstructure:"cache"`
-	Logger    logger.Config     `mapstructure:"logger"`
+	Database  database.Config `mapstructure:"database"`
+	Cache     cache.Config    `mapstructure:"cache"`
+	Logger    logger.Config   `mapstructure:"logger"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
 	Captcha   captcha.Config  `mapstructure:"captcha"`
 	SMTP      smtp.Config     `mapstructure:"smtp"`
 	Auth      AuthConfig      `mapstructure:"auth"`
 	Yggdrasil YggdrasilConfig `mapstructure:"yggdrasil"`
 	Score     ScoreConfig     `mapstructure:"score"`
+	Storage   StorageConfig   `mapstructure:"storage"`
 }
 
 type YggdrasilConfig struct {
@@ -31,18 +33,23 @@ type YggdrasilConfig struct {
 	ImplementationName string `mapstructure:"implementation_name"`
 }
 
+// StorageConfig controls texture file storage.
+type StorageConfig struct {
+	Dir string `mapstructure:"dir"`
+}
+
 // ScoreConfig controls the user score/points economy.
 type ScoreConfig struct {
-	InitialScore       int64 `mapstructure:"initial_score"`
-	SignGapHours       int   `mapstructure:"sign_gap_hours"`
-	SignScoreMin       int64 `mapstructure:"sign_score_min"`
-	SignScoreMax       int64 `mapstructure:"sign_score_max"`
-	SignAfterZero      bool  `mapstructure:"sign_after_zero"`
-	CostPerStorageKB   int64 `mapstructure:"cost_per_storage_kb"`
-	CostPrivateStorage int64 `mapstructure:"cost_private_storage"`
-	CostPerPlayer      int64 `mapstructure:"cost_per_player"`
-	CostPerClosetItem  int64 `mapstructure:"cost_per_closet_item"`
-	ReturnScoreOnRemove  bool  `mapstructure:"return_score_on_remove"`
+	InitialScore        int64 `mapstructure:"initial_score"`
+	SignGapHours        int   `mapstructure:"sign_gap_hours"`
+	SignScoreMin        int64 `mapstructure:"sign_score_min"`
+	SignScoreMax        int64 `mapstructure:"sign_score_max"`
+	SignAfterZero       bool  `mapstructure:"sign_after_zero"`
+	CostPerStorageKB    int64 `mapstructure:"cost_per_storage_kb"`
+	CostPrivateStorage  int64 `mapstructure:"cost_private_storage"`
+	CostPerPlayer       int64 `mapstructure:"cost_per_player"`
+	CostPerClosetItem   int64 `mapstructure:"cost_per_closet_item"`
+	ReturnScoreOnRemove bool  `mapstructure:"return_score_on_remove"`
 	AwardPerUpload      int64 `mapstructure:"award_per_upload"`
 	AwardPerLike        int64 `mapstructure:"award_per_like"`
 	TakeBackOnDelete    bool  `mapstructure:"take_back_on_delete"`
@@ -51,6 +58,7 @@ type ScoreConfig struct {
 type ServerConfig struct {
 	Port              string `mapstructure:"port"`
 	Mode              string `mapstructure:"mode"`
+	BaseURL           string `mapstructure:"base_url"` // public-facing URL, e.g. "https://example.com"
 	ReadHeaderTimeout int    `mapstructure:"read_header_timeout"`
 	ReadTimeout       int    `mapstructure:"read_timeout"`
 	WriteTimeout      int    `mapstructure:"write_timeout"`
@@ -112,6 +120,16 @@ func Load(path string) (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
 	}
+
+	// If base_url is not configured, derive from server.port
+	if cfg.Server.BaseURL == "" {
+		port := cfg.Server.Port
+		if port == "" {
+			port = "8080"
+		}
+		cfg.Server.BaseURL = fmt.Sprintf("http://localhost:%s", port)
+	}
+
 	return &cfg, nil
 }
 
@@ -125,6 +143,7 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("server.port", "8080")
 	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.base_url", "")
 	v.SetDefault("server.read_header_timeout", 5)
 	v.SetDefault("server.read_timeout", 15)
 	v.SetDefault("server.write_timeout", 30)
@@ -192,7 +211,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("score.award_per_upload", 0)
 	v.SetDefault("score.award_per_like", 0)
 	v.SetDefault("score.take_back_on_delete", true)
+
+	v.SetDefault("storage.dir", "data/textures")
 }
+
 // loadDotEnv reads a .env file and sets each KEY=VALUE into the OS environment,
 // so viper's AutomaticEnv can pick them up. Existing env vars are NOT overridden.
 func loadDotEnv(path string) {

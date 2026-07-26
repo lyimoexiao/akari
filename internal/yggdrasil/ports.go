@@ -21,6 +21,12 @@ type Repository interface {
 	ProfileByUUID(context.Context, string) (YggdrasilProfile, error)
 	ProfilesByNames(context.Context, []string) ([]YggdrasilProfile, error)
 	LastLoginToken(context.Context, string) (YggdrasilToken, error)
+
+	// Profile texture management
+	UpdateProfileSkin(ctx context.Context, profileID uint, textureID *uint) error
+	UpdateProfileCape(ctx context.Context, profileID uint, textureID *uint) error
+	UpdateProfileModel(ctx context.Context, profileID uint, model string) error
+	TextureByID(ctx context.Context, tid uint) (*model.Texture, error)
 }
 
 type ServerSession struct {
@@ -48,6 +54,8 @@ type Settings struct {
 	ServerName               string
 	ImplementationName       string
 	ImplementationVersion    string
+	TextureBaseURL           string // base URL for texture file serving, e.g. "https://example.com"
+	SkinDomains              []string // extra skin domains beyond defaults
 }
 
 type Dependencies struct {

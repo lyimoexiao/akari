@@ -117,6 +117,62 @@ func (r *Repository) LastLoginToken(ctx context.Context, email string) (yggdrasi
 	return token, err
 }
 
+func (r *Repository) UpdateProfileSkin(ctx context.Context, profileID uint, textureID *uint) error {
+	return r.db.WithContext(ctx).Model(&yggdrasil.YggdrasilProfile{}).
+		Where("id = ?", profileID).
+		Update("texture_skin_id", textureID).Error
+}
+
+func (r *Repository) UpdateProfileCape(ctx context.Context, profileID uint, textureID *uint) error {
+	return r.db.WithContext(ctx).Model(&yggdrasil.YggdrasilProfile{}).
+		Where("id = ?", profileID).
+		Update("texture_cape_id", textureID).Error
+}
+
+func (r *Repository) TextureByID(ctx context.Context, tid uint) (*model.Texture, error) {
+	var texture model.Texture
+	if err := r.db.WithContext(ctx).First(&texture, tid).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &texture, nil
+}
+
+func (r *Repository) UpdateProfileModel(ctx context.Context, profileID uint, model string) error {
+	return r.db.WithContext(ctx).Model(&yggdrasil.YggdrasilProfile{}).
+		Where("id = ?", profileID).
+		Update("model", model).Error
+}
+
+// ClearTextureFromProfile clears the given texture TID from the user's
+// Yggdrasil profile(s) — both skin and cape — so the profile no longer
+// references a texture that has been removed from the closet.
+func (r *Repository) ClearTextureFromProfile(ctx context.Context, userID, textureTID uint) error {
+	user, err := r.FindUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	profiles, err := r.ProfilesForUser(ctx, user.Email)
+	if err != nil {
+		return fmt.Errorf("find profiles: %w", err)
+	}
+	for _, p := range profiles {
+		if p.TextureSkinID != nil && *p.TextureSkinID == textureTID {
+			if err := r.UpdateProfileSkin(ctx, p.ID, nil); err != nil {
+				return fmt.Errorf("clear profile skin: %w", err)
+			}
+		}
+		if p.TextureCapeID != nil && *p.TextureCapeID == textureTID {
+			if err := r.UpdateProfileCape(ctx, p.ID, nil); err != nil {
+				return fmt.Errorf("clear profile cape: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 func mapNotFound(err, notFound error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return notFound

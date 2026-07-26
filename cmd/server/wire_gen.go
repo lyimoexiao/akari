@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
+	"github.com/lyimoexiao/akari/internal/closet"
+	"github.com/lyimoexiao/akari/internal/closetadapter"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/permission"
@@ -23,6 +25,8 @@ import (
 	"github.com/lyimoexiao/akari/internal/scoreadapter"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/signadapter"
+	"github.com/lyimoexiao/akari/internal/skinlib"
+	"github.com/lyimoexiao/akari/internal/textureadapter"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
@@ -31,11 +35,13 @@ import (
 	"github.com/lyimoexiao/akari/pkg/captcha"
 	"github.com/lyimoexiao/akari/pkg/jwt"
 	"github.com/lyimoexiao/akari/pkg/logger"
+	"github.com/lyimoexiao/akari/pkg/response"
 	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/pkg/util"
 	"github.com/lyimoexiao/akari/pkg/version"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -109,6 +115,12 @@ func Initialize(cfgPath string) (*App, func(), error) {
 	signService := ProvideSignService(config, signadapterRepository, scoreadapterRepository)
 	signHandler := ProvideSignHandler(signService, sugaredLogger)
 	scoreHandler := ProvideScoreHandler(scoreadapterRepository, permissionMiddleware, sugaredLogger)
+	fileStorage := ProvideTextureFileStorage(config)
+	skinlibService := ProvideSkinlibService(db, fileStorage, scoreadapterRepository, config)
+	skinlibHandler := ProvideSkinlibHandler(skinlibService, permissionMiddleware, sugaredLogger)
+	textureChecker := ProvideTextureChecker(db)
+	closetService := ProvideClosetService(db, textureChecker, scoreadapterRepository, config)
+	closetHandler := ProvideClosetHandler(closetService, permissionMiddleware, sugaredLogger)
 	handlers := &router.Handlers{
 		Auth:       handler,
 		User:       userHandler,
@@ -118,7 +130,10 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		Yggdrasil:  yggdrasilHandler,
 		Sign:       signHandler,
 		Score:      scoreHandler,
+		Skinlib:    skinlibHandler,
+		Closet:     closetHandler,
 	}
+	textureFileHandler := ProvideTextureServer(config)
 	dependencies := &router.Dependencies{
 		Health:         healthChecker,
 		RequestLogging: handlerFunc,
@@ -126,6 +141,7 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		Handlers:       handlers,
 		Auth:           middleware,
 		Logger:         sugaredLogger,
+		TextureServer:  textureFileHandler,
 	}
 	engine := ProvideEngine(config, dependencies)
 	app := &App{
@@ -359,12 +375,86 @@ func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, log
 			ServerName:               cfg.Yggdrasil.ServerName,
 			ImplementationName:       cfg.Yggdrasil.ImplementationName,
 			ImplementationVersion:    version.Version,
+			TextureBaseURL:           cfg.Server.BaseURL,
 		},
 	})
 }
 
 func ProvideYggdrasilHandler(svc *yggdrasil.Service, logger2 *zap.SugaredLogger) *yggdrasil.Handler {
 	return yggdrasil.NewHandler(svc, logger2)
+}
+
+func ProvideTextureFileStorage(cfg *config.Config) *textureadapter.FileStorage {
+	return textureadapter.NewFileStorage(cfg.Storage.Dir)
+}
+
+func ProvideTextureChecker(db *gorm.DB) *textureadapter.TextureChecker {
+	return textureadapter.NewTextureChecker(db)
+}
+
+func ProvideSkinlibService(
+	db *gorm.DB,
+	storage *textureadapter.FileStorage,
+	scoreOps *scoreadapter.Repository,
+	cfg *config.Config,
+) *skinlib.Service {
+	return skinlib.NewService(skinlib.Dependencies{
+		Repository:    textureadapter.NewRepository(db),
+		Storage:       storage,
+		ScoreOps:      scoreOps,
+		ClosetAdder:   closetadapter.NewRepository(db),
+		ClosetCleaner: closetadapter.NewRepository(db),
+		BaseURL:       cfg.Server.BaseURL,
+		AwardUpload:   cfg.Score.AwardPerUpload,
+	})
+}
+
+func ProvideSkinlibHandler(svc *skinlib.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *skinlib.Handler {
+	return skinlib.NewHandler(svc, permissions, logger2)
+}
+
+func ProvideClosetService(
+	db *gorm.DB,
+	textureChecker *textureadapter.TextureChecker,
+	scoreOps *scoreadapter.Repository,
+	cfg *config.Config,
+) *closet.Service {
+	return closet.NewService(closet.Dependencies{
+		Repository:          closetadapter.NewRepository(db),
+		TextureRepo:         textureChecker,
+		TextureDeleter:      textureChecker,
+		ProfileCleaner:      yggdrasiladapter.NewRepository(db),
+		ScoreOps:            scoreOps,
+		CostPerItem:         cfg.Score.CostPerClosetItem,
+		ReturnScoreOnRemove: cfg.Score.ReturnScoreOnRemove,
+		AwardPerLike:        cfg.Score.AwardPerLike,
+	})
+}
+
+func ProvideClosetHandler(svc *closet.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *closet.Handler {
+	return closet.NewHandler(svc, permissions, logger2)
+}
+
+func ProvideTextureServer(cfg *config.Config) router.TextureFileHandler {
+	dir := cfg.Storage.Dir
+	return func(ctx *gin.Context) {
+		hash := ctx.Param("hash")
+		if hash == "" {
+			response.BadRequest(ctx, "缺少 hash 参数")
+			return
+		}
+		if len(hash) < 2 {
+			response.BadRequest(ctx, "无效的 hash")
+			return
+		}
+
+		filePath := filepath.Join(dir, hash[:2], hash)
+
+		ctx.Header("Content-Type", "image/png")
+
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.File(filePath)
+	}
 }
 
 func setGinMode(mode string) {

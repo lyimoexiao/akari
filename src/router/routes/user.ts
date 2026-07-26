@@ -12,6 +12,18 @@ export const userRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/user/Home.vue'),
         meta: { title: '账户概览', requiresAuth: true },
       },
+      {
+        path: 'closet',
+        name: 'UserCloset',
+        component: () => import('@/views/user/Closet.vue'),
+        meta: { title: '我的衣橱', requiresAuth: true },
+      },
+      {
+        path: 'upload',
+        name: 'UserTextureUpload',
+        component: () => import('@/views/user/TextureUpload.vue'),
+        meta: { title: '上传纹理', requiresAuth: true },
+      },
     ],
   },
 ]

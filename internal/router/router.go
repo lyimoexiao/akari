@@ -23,6 +23,8 @@ import (
 	"github.com/lyimoexiao/akari/internal/role"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/score"
+	"github.com/lyimoexiao/akari/internal/skinlib"
+	"github.com/lyimoexiao/akari/internal/closet"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/web"
@@ -37,7 +39,12 @@ type Handlers struct {
 	Yggdrasil  *yggdrasil.Handler
 	Sign       *sign.Handler
 	Score      *score.Handler
+	Skinlib    *skinlib.Handler
+	Closet     *closet.Handler
 }
+
+// TextureFileHandler serves raw texture files by hash.
+type TextureFileHandler gin.HandlerFunc
 
 type Dependencies struct {
 	Health         HealthChecker
@@ -46,6 +53,7 @@ type Dependencies struct {
 	Handlers       *Handlers
 	Auth           *auth.Middleware
 	Logger         *zap.SugaredLogger
+	TextureServer  TextureFileHandler
 }
 
 func Setup(deps *Dependencies) *gin.Engine {
@@ -86,6 +94,11 @@ func Setup(deps *Dependencies) *gin.Engine {
 		deps.Logger.Warn("auth handler is nil, auth routes not registered")
 	}
 
+	// Skinlib public routes (browsable without authentication)
+	if deps.Handlers.Skinlib != nil {
+		deps.Handlers.Skinlib.RegisterPublicRoutes(v1)
+	}
+
 	if deps.Auth != nil {
 		protected := v1.Group("")
 		protected.Use(deps.Auth.RequireAuth())
@@ -109,6 +122,15 @@ func Setup(deps *Dependencies) *gin.Engine {
 		if deps.Handlers.Score != nil {
 			deps.Handlers.Score.RegisterRoutes(protected)
 		}
+		if deps.Handlers.Skinlib != nil {
+			deps.Handlers.Skinlib.RegisterRoutes(protected)
+		}
+		if deps.Handlers.Closet != nil {
+			deps.Handlers.Closet.RegisterRoutes(protected)
+		}
+		if deps.Handlers.Yggdrasil != nil {
+			deps.Handlers.Yggdrasil.RegisterAppRoutes(protected)
+		}
 	} else {
 		deps.Logger.Warn("auth middleware is nil, protected routes not registered")
 	}
@@ -117,12 +139,13 @@ func Setup(deps *Dependencies) *gin.Engine {
 	if deps.Handlers.Yggdrasil != nil {
 		yg := v1.Group("/yggdrasil")
 		deps.Handlers.Yggdrasil.RegisterRoutes(yg)
-		// User status endpoint uses app JWT auth, not Yggdrasil token auth
-		if deps.Auth != nil && deps.Handlers.Permission != nil {
-			yg.GET("/user/status", deps.Auth.RequireAuth(), deps.Handlers.Permission.Require(), deps.Handlers.Yggdrasil.UserStatus)
-		}
 	} else {
 		deps.Logger.Warn("yggdrasil handler is nil, yggdrasil routes not registered")
+	}
+
+	// Raw texture file serving (public)
+	if deps.TextureServer != nil {
+		v1.GET("/raw/:hash", gin.HandlerFunc(deps.TextureServer))
 	}
 
 	// Yggdrasil ALI (API Location Indication): serve header on all frontend paths

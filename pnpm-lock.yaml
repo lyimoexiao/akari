@@ -5,6 +5,10 @@ settings:
   excludeLinksFromLockfile: false
 
 catalogs:
+  default:
+    '@unocss/preset-web-fonts':
+      specifier: ^66.7.5
+      version: 66.7.5
   dev:
     '@antfu/eslint-config':
       specifier: ^9.2.0
@@ -126,7 +130,7 @@ importers:
         specifier: catalog:frontend
         version: 66.7.5
       '@unocss/preset-web-fonts':
-        specifier: ^66.7.5
+        specifier: 'catalog:'
         version: 66.7.5
       '@unocss/preset-wind4':
         specifier: catalog:frontend

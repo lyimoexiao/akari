@@ -41,17 +41,17 @@ func Test_Service_returns_effective_permission_identifiers_for_each_role(t *test
 		{
 			name:   "user receives own permission",
 			userID: users[0].ID,
-			want:   []string{"yggdrasil.status.read"},
+			want:   []string{"closet.add", "closet.list", "closet.remove", "closet.rename", "skinlib.delete", "skinlib.update", "skinlib.upload", "yggdrasil.status.read"},
 		},
 		{
 			name:   "staff receives inherited user permission",
 			userID: users[1].ID,
-			want:   []string{"users.delete", "users.read", "users.reset-password", "users.verify-email", "yggdrasil.status.read"},
+			want:   []string{"closet.add", "closet.list", "closet.remove", "closet.rename", "skinlib.delete", "skinlib.manage", "skinlib.update", "skinlib.upload", "users.delete", "users.read", "users.reset-password", "users.verify-email", "yggdrasil.status.read"},
 		},
 		{
 			name:   "super admin receives every inherited permission",
 			userID: users[2].ID,
-			want:   []string{"permissions.read", "request-logs.read", "roles.assign", "roles.create", "roles.delete", "roles.read", "roles.set-default", "roles.update", "users.delete", "users.read", "users.reset-password", "users.verify-email", "yggdrasil.status.read"},
+			want:   []string{"closet.add", "closet.list", "closet.remove", "closet.rename", "permissions.read", "request-logs.read", "roles.assign", "roles.create", "roles.delete", "roles.read", "roles.set-default", "roles.update", "skinlib.delete", "skinlib.manage", "skinlib.update", "skinlib.upload", "users.delete", "users.read", "users.reset-password", "users.verify-email", "yggdrasil.status.read"},
 		},
 	}
 

@@ -3,6 +3,8 @@ package yggdrasil
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 )
 
@@ -40,7 +42,7 @@ func (s *Service) HasJoined(ctx context.Context, username, serverID, ip string) 
 	if ip != "" && session.IP != "" && session.IP != ip {
 		return nil, ErrInvalidToken
 	}
-	response := s.profileWithTextures(profile, true)
+	response := s.profileWithTextures(ctx, profile, true)
 	return &response, nil
 }
 
@@ -49,7 +51,7 @@ func (s *Service) GetProfile(ctx context.Context, uuid string, unsigned bool) (*
 	if err != nil {
 		return nil, err
 	}
-	response := s.profileWithTextures(profile, !unsigned)
+	response := s.profileWithTextures(ctx, profile, !unsigned)
 	return &response, nil
 }
 
@@ -79,6 +81,8 @@ func (s *Service) UserStatus(ctx context.Context, userID uint) (*UserStatusResp,
 		response.HasProfile = true
 		response.ProfileUUID = profiles[0].UUID
 		response.ProfileName = profiles[0].Name
+		response.TextureSkinID = profiles[0].TextureSkinID
+		response.TextureCapeID = profiles[0].TextureCapeID
 	}
 	lastToken, err := s.repository.LastLoginToken(ctx, user.Email)
 	if err == nil {
@@ -94,6 +98,27 @@ func (s *Service) Metadata() *MetadataResp {
 	if s.signer != nil {
 		publicKey = s.signer.PublicKey()
 	}
+
+	// Build skin domains: defaults + extra from settings
+	domains := []string{".minecraft.net", ".mojang.com"}
+
+	// Parse the base URL and add its host as a domain
+	if s.settings.TextureBaseURL != "" {
+		if parsed, err := url.Parse(s.settings.TextureBaseURL); err == nil && parsed.Host != "" {
+			host := parsed.Host
+			// If host has a port, strip it for domain matching
+			if h, _, err := net.SplitHostPort(host); err == nil {
+				host = h
+			}
+			// Add exact match and wildcard
+			domains = append(domains, host)
+			domains = append(domains, "."+host)
+		}
+	}
+
+	// Add any extra configured domains
+	domains = append(domains, s.settings.SkinDomains...)
+
 	return &MetadataResp{
 		Meta: map[string]any{
 			"serverName":              s.settings.ServerName,
@@ -101,7 +126,7 @@ func (s *Service) Metadata() *MetadataResp {
 			"implementationVersion":   s.settings.ImplementationVersion,
 			"feature.non_email_login": true,
 		},
-		SkinDomains:        []string{},
+		SkinDomains:        domains,
 		SignaturePublickey: publicKey,
 	}
 }

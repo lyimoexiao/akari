@@ -233,6 +233,110 @@ func (h *Handler) UserStatus(ctx *gin.Context) {
 	response.Success(ctx, resp)
 }
 
+// ───────────────────────────── Profile Texture Management (app JWT auth) ─────────────────────────────
+
+// SetSkin handles PUT /api/v1/yggdrasil/profile/skin
+func (h *Handler) SetSkin(ctx *gin.Context) {
+	userID := auth.GetUserID(ctx)
+	if userID == 0 {
+		response.Unauthorized(ctx, "需要认证")
+		return
+	}
+
+	var req SetSkinReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(ctx, "无效请求: "+err.Error())
+		return
+	}
+
+	if err := h.svc.SetSkin(ctx.Request.Context(), userID, req.TextureTID); err != nil {
+		switch {
+		case errors.Is(err, ErrProfileNotFound):
+			response.NotFound(ctx, "角色不存在")
+		case errors.Is(err, ErrTextureNotFound):
+			response.NotFound(ctx, "纹理不存在")
+		default:
+			h.logger.Errorw("set skin failed", "user_id", userID, "tid", req.TextureTID, "error", err)
+			response.InternalError(ctx, "设置皮肤失败")
+		}
+		return
+	}
+
+	response.SuccessWithMsg(ctx, "皮肤已设置", nil)
+}
+
+// SetCape handles PUT /api/v1/yggdrasil/profile/cape
+func (h *Handler) SetCape(ctx *gin.Context) {
+	userID := auth.GetUserID(ctx)
+	if userID == 0 {
+		response.Unauthorized(ctx, "需要认证")
+		return
+	}
+
+	var req SetCapeReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(ctx, "无效请求: "+err.Error())
+		return
+	}
+
+	if err := h.svc.SetCape(ctx.Request.Context(), userID, req.TextureTID); err != nil {
+		switch {
+		case errors.Is(err, ErrProfileNotFound):
+			response.NotFound(ctx, "角色不存在")
+		case errors.Is(err, ErrTextureNotFound):
+			response.NotFound(ctx, "纹理不存在")
+		default:
+			h.logger.Errorw("set cape failed", "user_id", userID, "tid", req.TextureTID, "error", err)
+			response.InternalError(ctx, "设置披风失败")
+		}
+		return
+	}
+
+	response.SuccessWithMsg(ctx, "披风已设置", nil)
+}
+
+	// ClearSkin handles DELETE /api/v1/yggdrasil/profile/skin
+	func (h *Handler) ClearSkin(ctx *gin.Context) {
+		userID := auth.GetUserID(ctx)
+		if userID == 0 {
+			response.Unauthorized(ctx, "需要认证")
+			return
+		}
+
+		if err := h.svc.ClearSkin(ctx.Request.Context(), userID); err != nil {
+			if errors.Is(err, ErrProfileNotFound) {
+				response.NotFound(ctx, "角色不存在")
+			} else {
+				h.logger.Errorw("clear skin failed", "user_id", userID, "error", err)
+				response.InternalError(ctx, "清除皮肤失败")
+			}
+			return
+		}
+
+		response.SuccessWithMsg(ctx, "皮肤已清除", nil)
+	}
+
+	// ClearCape handles DELETE /api/v1/yggdrasil/profile/cape
+	func (h *Handler) ClearCape(ctx *gin.Context) {
+		userID := auth.GetUserID(ctx)
+		if userID == 0 {
+			response.Unauthorized(ctx, "需要认证")
+			return
+		}
+
+		if err := h.svc.ClearCape(ctx.Request.Context(), userID); err != nil {
+			if errors.Is(err, ErrProfileNotFound) {
+				response.NotFound(ctx, "角色不存在")
+			} else {
+				h.logger.Errorw("clear cape failed", "user_id", userID, "error", err)
+				response.InternalError(ctx, "清除披风失败")
+			}
+			return
+		}
+
+		response.SuccessWithMsg(ctx, "披风已清除", nil)
+	}
+
 // ───────────────────────────── API Metadata ─────────────────────────────
 
 // GET /
@@ -263,4 +367,17 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	// Metadata at the root of the Yggdrasil API (with and without trailing slash)
 	r.GET("", h.Metadata)
 	r.GET("/", h.Metadata)
+}
+
+// RegisterAppRoutes registers Yggdrasil app-authenticated routes (requires app JWT).
+// Mounted inside the protected group with app JWT auth + permission checks.
+func (h *Handler) RegisterAppRoutes(protected *gin.RouterGroup) {
+	profile := protected.Group("/yggdrasil/profile")
+	{
+		profile.GET("/status", h.UserStatus)
+		profile.PUT("/skin", h.SetSkin)
+		profile.DELETE("/skin", h.ClearSkin)
+		profile.PUT("/cape", h.SetCape)
+		profile.DELETE("/cape", h.ClearCape)
+	}
 }

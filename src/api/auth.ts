@@ -39,7 +39,23 @@ export function logoutUser(token: string) {
 }
 
 export function getYggdrasilStatus(token: string) {
-  return http.get({ path: 'yggdrasil/user/status', token, schema: yggdrasilStatusSchema })
+  return http.get({ path: 'yggdrasil/profile/status', token, schema: yggdrasilStatusSchema })
+}
+
+export function setProfileSkin(token: string, textureTID: number) {
+  return http.put({ path: 'yggdrasil/profile/skin', token, body: { texture_tid: textureTID }, schema: messageSchema })
+}
+
+export function setProfileCape(token: string, textureTID: number) {
+  return http.put({ path: 'yggdrasil/profile/cape', token, body: { texture_tid: textureTID }, schema: messageSchema })
+}
+
+export function clearProfileSkin(token: string) {
+  return http.delete({ path: 'yggdrasil/profile/skin', token, schema: messageSchema })
+}
+
+export function clearProfileCape(token: string) {
+  return http.delete({ path: 'yggdrasil/profile/cape', token, schema: messageSchema })
 }
 
 export function requestPasswordReset(data: ForgotPasswordReq) {

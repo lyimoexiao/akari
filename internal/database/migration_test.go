@@ -110,16 +110,16 @@ func Test_Migrate_seeds_default_roles_permissions_and_is_idempotent(t *testing.T
 	if err := db.Model(&model.Permission{}).Count(&permissionCount).Error; err != nil {
 		t.Fatalf("count permissions: %v", err)
 	}
-	if permissionCount != 13 {
-		t.Fatalf("permissions = %d, want 13", permissionCount)
+	if permissionCount != 21 {
+		t.Fatalf("permissions = %d, want 21", permissionCount)
 	}
 
 	var relationCount int64
 	if err := db.Model(&model.RolePermission{}).Count(&relationCount).Error; err != nil {
 		t.Fatalf("count role permissions: %v", err)
 	}
-	if relationCount != 13 {
-		t.Fatalf("role permissions = %d, want 13", relationCount)
+	if relationCount != 21 {
+		t.Fatalf("role permissions = %d, want 21", relationCount)
 	}
 	constraints := map[string][]string{
 		"user_roles":       {"fk_user_roles_user", "fk_user_roles_role"},

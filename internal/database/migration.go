@@ -27,10 +27,18 @@ func (userRoleMigration) TableName() string {
 
 var permissionSeeds = []permissionSeed{
 	{model.RoleUser, "yggdrasil.status.read", "/api/v1/yggdrasil/user/status", http.MethodGet, "读取 Yggdrasil 用户状态"},
+	{model.RoleUser, "skinlib.upload", "/api/v1/skinlib", http.MethodPost, "上传皮肤"},
+	{model.RoleUser, "skinlib.update", "/api/v1/skinlib/:tid", http.MethodPut, "更新皮肤信息"},
+	{model.RoleUser, "skinlib.delete", "/api/v1/skinlib/:tid", http.MethodDelete, "删除自己上传的皮肤"},
+	{model.RoleUser, "closet.list", "/api/v1/closet", http.MethodGet, "查看衣橱"},
+	{model.RoleUser, "closet.add", "/api/v1/closet", http.MethodPost, "添加皮肤到衣橱"},
+	{model.RoleUser, "closet.remove", "/api/v1/closet/:tid", http.MethodDelete, "从衣橱移除皮肤"},
+	{model.RoleUser, "closet.rename", "/api/v1/closet/:tid", http.MethodPut, "重命名衣橱物品"},
 	{model.RoleStaff, "users.read", "/api/v1/users", http.MethodGet, "读取用户列表"},
 	{model.RoleStaff, "users.verify-email", "/api/v1/users/verify-email", http.MethodPost, "验证用户邮箱"},
 	{model.RoleStaff, "users.reset-password", "/api/v1/users/reset-password", http.MethodPost, "重置用户密码"},
 	{model.RoleStaff, "users.delete", "/api/v1/users/:id", http.MethodDelete, "删除用户"},
+	{model.RoleStaff, "skinlib.manage", "/api/v1/skinlib/manage", http.MethodGet, "管理皮肤库（查看私有/删除任意）"},
 	{model.RoleSuperAdmin, "roles.read", "/api/v1/roles", http.MethodGet, "读取角色列表"},
 	{model.RoleSuperAdmin, "roles.create", "/api/v1/roles", http.MethodPost, "创建角色"},
 	{model.RoleSuperAdmin, "roles.update", "/api/v1/roles/:id", http.MethodPut, "更新角色"},
@@ -58,6 +66,8 @@ func Migrate(db *gorm.DB) error {
 		&model.RolePermission{},
 		&model.RequestLog{},
 		&model.ScoreLog{},
+		&model.Texture{},
+		&model.UserCloset{},
 	); err != nil {
 		return fmt.Errorf("migrate access-control schema: %w", err)
 	}
