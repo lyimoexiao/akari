@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
 </p>
 
-Another Minecraft Yggdrasil API-Compatible Server
+Next-generation Minecraft skin server with Yggdrasil API compatibility.
 
 ## Build Environment
 
