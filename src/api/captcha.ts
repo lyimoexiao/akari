@@ -13,7 +13,7 @@ const rotateCaptchaSchema = z.object({
   type: z.literal('rotate'),
   master_image: z.string(),
   thumb_image: z.string(),
-  angle: z.number(),
+  thumb_size: z.number(),
 })
 
 const slideCaptchaSchema = z.object({
@@ -23,7 +23,6 @@ const slideCaptchaSchema = z.object({
   tile_image: z.string(),
   tile_width: z.number(),
   tile_height: z.number(),
-  thumb_x: z.number(),
   thumb_y: z.number(),
 })
 

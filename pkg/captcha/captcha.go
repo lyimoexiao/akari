@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	mathrand "math/rand/v2"
 	"net/http"
 	"time"
 
@@ -41,7 +42,8 @@ func New(cfg *Config, c cache.Cache) *Service {
 		cache:  c,
 		client: &http.Client{Timeout: 10 * time.Second},
 	}
-	if cfg.Provider == "gocaptcha" {
+	if cfg.Provider != "turnstile" {
+		cfg.Provider = "gocaptcha"
 		s.init()
 	}
 	return s
@@ -81,10 +83,7 @@ func (s *Service) newClickCaptcha() click.Captcha {
 		click.WithImageSize(option.Size{Width: 300, Height: 240}),
 		click.WithRangeLen(option.RangeVal{Min: 4, Max: 6}),
 		click.WithRangeVerifyLen(option.RangeVal{Min: 2, Max: 4}),
-		click.WithRangeColors([]string{
-			"#1e3a8a", "#166534", "#881337", "#1e40af", "#0f766e",
-			"#a21caf", "#b91c1c", "#0d9488", "#7c3aed", "#2563eb",
-		}),
+		click.WithRangeColors(randomColors(10)),
 		click.WithRangeAnglePos([]option.RangeVal{
 			{Min: 20, Max: 330},
 		}),
@@ -94,16 +93,51 @@ func (s *Service) newClickCaptcha() click.Captcha {
 	)
 
 	builder.SetResources(
-		click.WithChars([]string{
-			"这", "是", "一", "个", "测", "试", "验", "证", "码",
-			"安", "全", "校", "验", "通", "过", "点", "击", "确", "认",
-		}),
+		click.WithChars(clickChars()),
 		click.WithFonts([]*truetype.Font{font}),
 		click.WithBackgrounds(bgImages),
 		click.WithThumbBackgrounds(thumbImages),
 	)
 
 	return builder.Make()
+}
+
+// randomColors generates n random hex color strings that are visible on typical backgrounds.
+func randomColors(n int) []string {
+	colors := make([]string, n)
+	for i := range n {
+		// Keep colors within a visible range: 40–220 for each channel
+		r := mathrand.IntN(181) + 40
+		g := mathrand.IntN(181) + 40
+		b := mathrand.IntN(181) + 40
+		colors[i] = fmt.Sprintf("#%02x%02x%02x", r, g, b)
+	}
+	return colors
+}
+
+// clickChars returns a large set of Chinese characters for click captcha randomness.
+func clickChars() []string {
+	return []string{
+		"这", "是", "一", "个", "测", "试", "验", "证", "码",
+		"安", "全", "校", "验", "通", "过", "点", "击", "确", "认",
+		"登", "录", "注", "册", "密", "码", "账", "号", "邮", "箱",
+		"用", "户", "名", "称", "手", "机", "号", "地", "址",
+		"修", "改", "删", "除", "新", "增", "编", "辑", "查", "看",
+		"提", "交", "返", "回", "保", "存", "取", "消", "确", "定",
+		"开", "关", "启", "用", "禁", "止", "允", "许", "拒", "绝",
+		"下", "载", "上", "传", "复", "制", "粘", "贴", "打", "印",
+		"搜", "索", "过", "滤", "排", "序", "显", "示", "隐", "藏",
+		"大", "小", "长", "宽", "高", "低", "远", "近", "快", "慢",
+		"红", "黄", "蓝", "绿", "紫", "橙", "灰", "黑", "白", "金",
+		"左", "右", "前", "后", "上", "下", "里", "外", "中", "间",
+		"春", "夏", "秋", "冬", "东", "西", "南", "北", "边", "角",
+		"天", "地", "山", "水", "火", "风", "云", "雨", "雪", "月",
+		"花", "草", "树", "木", "石", "沙", "土", "田", "林", "海",
+		"鱼", "鸟", "虫", "马", "牛", "羊", "猫", "狗", "兔", "龙",
+		"学", "习", "写", "画", "听", "说", "读", "唱", "跳", "跑",
+		"开", "关", "门", "窗", "书", "桌", "椅", "灯", "笔", "纸",
+		"工", "作", "生", "活", "吃", "喝", "玩", "乐", "睡", "觉",
+	}
 }
 
 // newRotateCaptcha creates a rotate-style captcha builder.
@@ -238,8 +272,7 @@ func (s *Service) genClick(ctx context.Context) (map[string]any, error) {
 	logger.L.Debugw("genClick captcha created",
 		"captcha_id", captchaID,
 		"type", "click",
-		"dot_count", len(storedDots),
-		"dots", storedDots)
+		"dot_count", len(storedDots))
 
 	return map[string]any{
 		"captcha_id":   captchaID,
@@ -269,9 +302,16 @@ func (s *Service) genRotate(ctx context.Context) (map[string]any, error) {
 		return nil, fmt.Errorf("encode thumb image: %w", err)
 	}
 
-	// Store the correct angle in cache
+	// Store the expected rotation angle in cache.
+	// The thumb image is baked with block.Angle rotation. The frontend slider
+	// starts at 0° CSS rotation, so the user must rotate to (360 - block.Angle)°
+	// for visual alignment. Store that as the answer.
 	captchaID := generateID()
-	answer := map[string]any{"angle": float64(block.Angle)}
+	expectedAngle := (360 - block.Angle) % 360
+	if expectedAngle < 0 {
+		expectedAngle += 360
+	}
+	answer := map[string]any{"angle": float64(expectedAngle)}
 	if err := s.cacheAnswer(ctx, captchaID, answer); err != nil {
 		return nil, err
 	}
@@ -281,7 +321,8 @@ func (s *Service) genRotate(ctx context.Context) (map[string]any, error) {
 		"type":         "rotate",
 		"master_image": masterB64,
 		"thumb_image":  thumbB64,
-		"angle":        block.Angle,
+		"angle":        0,
+		"thumb_size":   block.Width,
 	}, nil
 }
 
@@ -305,9 +346,9 @@ func (s *Service) genSlide(ctx context.Context) (map[string]any, error) {
 		return nil, fmt.Errorf("encode tile image: %w", err)
 	}
 
-	// Store the correct X position in cache
+	// Store the correct X position in cache (Y is returned for rendering but never verified)
 	captchaID := generateID()
-	answer := map[string]any{"x": float64(block.X), "y": float64(block.Y)}
+	answer := map[string]any{"x": float64(block.X)}
 	if err := s.cacheAnswer(ctx, captchaID, answer); err != nil {
 		return nil, err
 	}
@@ -319,7 +360,6 @@ func (s *Service) genSlide(ctx context.Context) (map[string]any, error) {
 		"tile_image":   tileB64,
 		"tile_width":   block.Width,
 		"tile_height":  block.Height,
-		"thumb_x":      block.X,
 		"thumb_y":      block.Y,
 	}, nil
 }
@@ -509,12 +549,12 @@ func (s *Service) verifyRotate(storedData, userData map[string]any) (bool, error
 	if !ok {
 		return false, nil
 	}
-	// Allow a small tolerance (padding) of 5 degrees
+	// Allow a small tolerance (padding) of 8 degrees
 	diff := userAngle - storedAngle
 	if diff < 0 {
 		diff = -diff
 	}
-	return diff <= 5, nil
+	return diff <= 8, nil
 }
 
 // verifySlide verifies a slide captcha answer.
@@ -550,8 +590,8 @@ func (s *Service) IsEnabled() bool {
 func generateID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		// fallback: timestamp + hex — still unique even if crypto rand fails
-		return hex.EncodeToString([]byte(time.Now().String()))
+		// fallback: nanosecond timestamp — unique even if crypto rand fails
+		return fmt.Sprintf("%x", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
 }

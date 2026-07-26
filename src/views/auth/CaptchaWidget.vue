@@ -78,7 +78,11 @@ onUnmounted(() => {
   <gocaptcha-rotate
     v-else-if="'type' in captcha && captcha.type === 'rotate'"
     :config="{ width: 280 }"
-    :data="{ image: captcha.master_image, thumb: captcha.thumb_image }"
+    :data="{
+      image: captcha.master_image,
+      thumb: captcha.thumb_image,
+      thumbSize: captcha.thumb_size,
+    }"
     :events="{ confirm: confirmRotate, refresh: () => emit('refresh'), close: () => emit('close') }"
   />
   <gocaptcha-slide
@@ -87,7 +91,6 @@ onUnmounted(() => {
     :data="{
       image: captcha.master_image,
       thumb: captcha.tile_image,
-      thumbX: captcha.thumb_x,
       thumbY: captcha.thumb_y,
       thumbWidth: captcha.tile_width,
       thumbHeight: captcha.tile_height,

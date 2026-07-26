@@ -2,6 +2,7 @@ package captcha
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/pkg/response"
 )
 
@@ -58,10 +59,11 @@ func (h *Handler) TurnstileVerify(ctx *gin.Context) {
 
 	pass, err := h.svc.VerifyToken(ctx.Request.Context(), req.Token)
 	if err != nil {
+		logger.L.Errorw("turnstile verification failed", "error", err)
 		response.Success(ctx, gin.H{
 			"enabled": true,
 			"pass":    false,
-			"message": err.Error(),
+			"message": "验证码验证失败",
 		})
 		return
 	}
@@ -76,9 +78,9 @@ func (h *Handler) TurnstileVerify(ctx *gin.Context) {
 func (h *Handler) Verify(ctx *gin.Context) {
 	if !h.svc.IsEnabled() {
 		response.Success(ctx, gin.H{
-			"enabled": true,
+			"enabled": false,
 			"pass":    true,
-			"message": "验证码已禁用，直接通过",
+			"message": "验证码已禁用",
 		})
 		return
 	}
@@ -91,11 +93,12 @@ func (h *Handler) Verify(ctx *gin.Context) {
 
 	pass, err := h.svc.Verify(ctx.Request.Context(), req.CaptchaID, req.UserAnswer)
 	if err != nil {
+		logger.L.Errorw("captcha verification failed", "captcha_id", req.CaptchaID, "error", err)
 		// Captcha expired or not found - treat as failure
 		response.Success(ctx, gin.H{
 			"enabled": true,
 			"pass":    false,
-			"message": err.Error(),
+			"message": "验证码已过期或无效",
 		})
 		return
 	}
