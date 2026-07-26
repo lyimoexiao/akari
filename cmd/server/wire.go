@@ -11,13 +11,10 @@ import (
 	"github.com/google/wire"
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
-	"github.com/lyimoexiao/akari/pkg/cache"
-	"github.com/lyimoexiao/akari/pkg/captcha"
 	"github.com/lyimoexiao/akari/internal/closet"
 	"github.com/lyimoexiao/akari/internal/closetadapter"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
-	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/internal/permission"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
 	"github.com/lyimoexiao/akari/internal/requestlog"
@@ -25,19 +22,22 @@ import (
 	"github.com/lyimoexiao/akari/internal/role"
 	"github.com/lyimoexiao/akari/internal/router"
 	"github.com/lyimoexiao/akari/internal/routeradapter"
-	"github.com/lyimoexiao/akari/internal/scoreadapter"
 	"github.com/lyimoexiao/akari/internal/score"
+	"github.com/lyimoexiao/akari/internal/scoreadapter"
 	"github.com/lyimoexiao/akari/internal/sign"
 	"github.com/lyimoexiao/akari/internal/signadapter"
 	"github.com/lyimoexiao/akari/internal/skinlib"
 	"github.com/lyimoexiao/akari/internal/textureadapter"
-	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
+	"github.com/lyimoexiao/akari/pkg/cache"
+	"github.com/lyimoexiao/akari/pkg/captcha"
 	"github.com/lyimoexiao/akari/pkg/jwt"
+	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/pkg/response"
+	"github.com/lyimoexiao/akari/pkg/smtp"
 	"github.com/lyimoexiao/akari/pkg/util"
 	"github.com/lyimoexiao/akari/pkg/version"
 	"go.uber.org/zap"
@@ -237,7 +237,6 @@ func ProvideRequestLogMiddleware(repository *requestlogadapter.Repository, logge
 func ProvideRequestLogHandler(svc *requestlog.Service, logger *zap.SugaredLogger) *requestlog.Handler {
 	return requestlog.NewHandler(svc, logger)
 }
-
 
 func ProvideUserService(db *gorm.DB) *user.Service {
 	return user.NewService(user.Dependencies{

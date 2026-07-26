@@ -7,11 +7,11 @@ import (
 
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/authadapter"
-	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/model"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
 	"github.com/lyimoexiao/akari/internal/role"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/pkg/jwt"
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"

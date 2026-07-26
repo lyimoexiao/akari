@@ -12,10 +12,10 @@ import (
 )
 
 var forbiddenImports = map[string]struct{}{
-	"github.com/casbin/casbin/v3":                {},
-	"github.com/casbin/casbin/v3/model":          {},
+	"github.com/casbin/casbin/v3":           {},
+	"github.com/casbin/casbin/v3/model":     {},
 	"github.com/lyimoexiao/akari/pkg/cache": {},
-	"gorm.io/gorm": {},
+	"gorm.io/gorm":                          {},
 }
 
 func Test_Business_packages_do_not_import_concrete_infrastructure(t *testing.T) {

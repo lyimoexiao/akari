@@ -142,16 +142,16 @@ type JoinReq struct {
 // ── Profiles batch ──
 // (body: []string)
 
-	// ── User Status (web UI) ──
+// ── User Status (web UI) ──
 
 type UserStatusResp struct {
-	HasProfile   bool    `json:"has_profile"`
-	ProfileUUID  string  `json:"profile_uuid,omitempty"`
-	ProfileName  string  `json:"profile_name,omitempty"`
-	TextureSkinID *uint  `json:"texture_skin_id,omitempty"`
-	TextureCapeID *uint  `json:"texture_cape_id,omitempty"`
-	LastLoginAt  *string `json:"last_login_at,omitempty"`
-	LastLoginIP  string  `json:"last_login_ip,omitempty"`
+	HasProfile    bool    `json:"has_profile"`
+	ProfileUUID   string  `json:"profile_uuid,omitempty"`
+	ProfileName   string  `json:"profile_name,omitempty"`
+	TextureSkinID *uint   `json:"texture_skin_id,omitempty"`
+	TextureCapeID *uint   `json:"texture_cape_id,omitempty"`
+	LastLoginAt   *string `json:"last_login_at,omitempty"`
+	LastLoginIP   string  `json:"last_login_ip,omitempty"`
 }
 
 // ── Profile texture management (app API) ──

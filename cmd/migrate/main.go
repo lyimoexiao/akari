@@ -5,8 +5,8 @@ import (
 
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
-	"github.com/lyimoexiao/akari/pkg/logger"
 	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
+	"github.com/lyimoexiao/akari/pkg/logger"
 )
 
 func main() {

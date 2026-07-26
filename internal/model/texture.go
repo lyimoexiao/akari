@@ -12,7 +12,7 @@ type Texture struct {
 	Name      string         `gorm:"size:128;not null" json:"name"`
 	Type      string         `gorm:"size:16;not null;index" json:"type"` // "steve", "alex", "cape"
 	Hash      string         `gorm:"index;size:128;not null" json:"hash"`
-	URL       string         `gorm:"size:512" json:"url"`                // full URL to the texture file
+	URL       string         `gorm:"size:512" json:"url"` // full URL to the texture file
 	Size      int64          `gorm:"not null" json:"size"`
 	Uploader  uint           `gorm:"index;not null" json:"uploader"`
 	Public    bool           `gorm:"not null;default:true;index" json:"public"`

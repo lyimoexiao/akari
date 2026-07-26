@@ -88,7 +88,6 @@ func (s *Service) DeleteUser(ctx context.Context, command DeleteUserCommand) err
 	return nil
 }
 
-
 func (s *Service) loadMutableTarget(ctx context.Context, callerID, userID uint) (model.User, error) {
 	target, err := s.repository.FindByID(ctx, userID)
 	if err != nil {

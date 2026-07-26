@@ -25,10 +25,10 @@ type Dependencies struct {
 }
 
 type SignConfig struct {
-	GapHours    int
-	ScoreMin    int64
-	ScoreMax    int64
-	AfterZero   bool
+	GapHours  int
+	ScoreMin  int64
+	ScoreMax  int64
+	AfterZero bool
 }
 
 type ScoreOperator interface {

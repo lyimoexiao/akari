@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lyimoexiao/akari/internal/auth"
-	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/permission"
 	"github.com/lyimoexiao/akari/internal/rbacadapter"
@@ -20,6 +19,7 @@ import (
 	"github.com/lyimoexiao/akari/internal/routeradapter"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
+	"github.com/lyimoexiao/akari/pkg/cache"
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

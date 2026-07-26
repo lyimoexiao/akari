@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MenuOption, SelectOption } from 'naive-ui'
+import type { MenuOption } from 'naive-ui'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

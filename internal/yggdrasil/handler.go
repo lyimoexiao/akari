@@ -295,47 +295,47 @@ func (h *Handler) SetCape(ctx *gin.Context) {
 	response.SuccessWithMsg(ctx, "披风已设置", nil)
 }
 
-	// ClearSkin handles DELETE /api/v1/yggdrasil/profile/skin
-	func (h *Handler) ClearSkin(ctx *gin.Context) {
-		userID := auth.GetUserID(ctx)
-		if userID == 0 {
-			response.Unauthorized(ctx, "需要认证")
-			return
-		}
-
-		if err := h.svc.ClearSkin(ctx.Request.Context(), userID); err != nil {
-			if errors.Is(err, ErrProfileNotFound) {
-				response.NotFound(ctx, "角色不存在")
-			} else {
-				h.logger.Errorw("clear skin failed", "user_id", userID, "error", err)
-				response.InternalError(ctx, "清除皮肤失败")
-			}
-			return
-		}
-
-		response.SuccessWithMsg(ctx, "皮肤已清除", nil)
+// ClearSkin handles DELETE /api/v1/yggdrasil/profile/skin
+func (h *Handler) ClearSkin(ctx *gin.Context) {
+	userID := auth.GetUserID(ctx)
+	if userID == 0 {
+		response.Unauthorized(ctx, "需要认证")
+		return
 	}
 
-	// ClearCape handles DELETE /api/v1/yggdrasil/profile/cape
-	func (h *Handler) ClearCape(ctx *gin.Context) {
-		userID := auth.GetUserID(ctx)
-		if userID == 0 {
-			response.Unauthorized(ctx, "需要认证")
-			return
+	if err := h.svc.ClearSkin(ctx.Request.Context(), userID); err != nil {
+		if errors.Is(err, ErrProfileNotFound) {
+			response.NotFound(ctx, "角色不存在")
+		} else {
+			h.logger.Errorw("clear skin failed", "user_id", userID, "error", err)
+			response.InternalError(ctx, "清除皮肤失败")
 		}
-
-		if err := h.svc.ClearCape(ctx.Request.Context(), userID); err != nil {
-			if errors.Is(err, ErrProfileNotFound) {
-				response.NotFound(ctx, "角色不存在")
-			} else {
-				h.logger.Errorw("clear cape failed", "user_id", userID, "error", err)
-				response.InternalError(ctx, "清除披风失败")
-			}
-			return
-		}
-
-		response.SuccessWithMsg(ctx, "披风已清除", nil)
+		return
 	}
+
+	response.SuccessWithMsg(ctx, "皮肤已清除", nil)
+}
+
+// ClearCape handles DELETE /api/v1/yggdrasil/profile/cape
+func (h *Handler) ClearCape(ctx *gin.Context) {
+	userID := auth.GetUserID(ctx)
+	if userID == 0 {
+		response.Unauthorized(ctx, "需要认证")
+		return
+	}
+
+	if err := h.svc.ClearCape(ctx.Request.Context(), userID); err != nil {
+		if errors.Is(err, ErrProfileNotFound) {
+			response.NotFound(ctx, "角色不存在")
+		} else {
+			h.logger.Errorw("clear cape failed", "user_id", userID, "error", err)
+			response.InternalError(ctx, "清除披风失败")
+		}
+		return
+	}
+
+	response.SuccessWithMsg(ctx, "披风已清除", nil)
+}
 
 // ───────────────────────────── API Metadata ─────────────────────────────
 

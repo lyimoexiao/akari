@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/lyimoexiao/akari/pkg/cache"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
+	"github.com/lyimoexiao/akari/pkg/cache"
 )
 
 const joinSessionPrefix = "yggdrasil:join:"

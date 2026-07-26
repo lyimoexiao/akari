@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { YggdrasilStatusResp } from '@/types/auth'
 
-const props = defineProps<{
+defineProps<{
   status: YggdrasilStatusResp | null
   loading: boolean
   available: boolean

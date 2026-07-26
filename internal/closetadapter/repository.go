@@ -90,7 +90,7 @@ func (r *Repository) List(ctx context.Context, userID uint, query closet.ListQue
 	offset := (page - 1) * pageSize
 
 	// Query with explicit join
-		type closetRow struct {
+	type closetRow struct {
 		TextureTID uint      `gorm:"column:texture_t_id"`
 		ItemName   string    `gorm:"column:item_name"`
 		CreatedAt  time.Time `gorm:"column:created_at"`
