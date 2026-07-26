@@ -1,77 +1,117 @@
 package router
 
 import (
+	"context"
 	"io/fs"
 	"log"
 	"mime"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lyimoexiao/akari/internal/admin"
 	"github.com/lyimoexiao/akari/internal/auth"
-	"github.com/lyimoexiao/akari/internal/cache"
 	"github.com/lyimoexiao/akari/internal/captcha"
 	"github.com/lyimoexiao/akari/internal/logger"
 	"github.com/lyimoexiao/akari/internal/middleware"
+	"github.com/lyimoexiao/akari/internal/permission"
+	"github.com/lyimoexiao/akari/internal/requestlog"
 	"github.com/lyimoexiao/akari/internal/response"
+	"github.com/lyimoexiao/akari/internal/role"
+	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/web"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
-func Setup(db *gorm.DB, c cache.Cache, captchaSvc *captcha.Service, authHandler *auth.Handler, adminHandler *admin.Handler, yggdrasilHandler *yggdrasil.Handler, authMw *auth.Middleware, l *zap.SugaredLogger) *gin.Engine {
+type Handlers struct {
+	Auth       *auth.Handler
+	User       *user.Handler
+	Role       *role.Handler
+	Permission *permission.Handler
+	RequestLog *requestlog.Handler
+	Yggdrasil  *yggdrasil.Handler
+}
+
+type Dependencies struct {
+	Health         HealthChecker
+	RequestLogging gin.HandlerFunc
+	Captcha        *captcha.Service
+	Handlers       *Handlers
+	Auth           *auth.Middleware
+	Logger         *zap.SugaredLogger
+}
+
+func Setup(deps *Dependencies) *gin.Engine {
 	r := gin.New()
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
-	r.Use(middleware.TraceID())
-	r.Use(logger.GinLogger(), logger.GinRecovery())
-
-	r.Use(func(ctx *gin.Context) {
-		ctx.Set("db", db)
-		ctx.Set("cache", c)
-		ctx.Next()
-	})
+	r.Use(middleware.RequestID())
+	if deps.RequestLogging != nil {
+		r.Use(deps.RequestLogging)
+	}
+	r.Use(logger.GinRecovery())
 
 	r.GET("/health", func(ctx *gin.Context) {
+		probeContext, cancel := context.WithTimeout(ctx.Request.Context(), 2*time.Second)
+		defer cancel()
+
+		if deps.Health == nil || deps.Health.Check(probeContext) != nil {
+			response.Error(ctx, http.StatusServiceUnavailable, "service unavailable")
+			return
+		}
 		response.Success(ctx, gin.H{"status": "ok"})
 	})
 
 	v1 := r.Group("/api/v1")
 
 	// Captcha routes (only added if enabled)
-	if captchaSvc != nil && captchaSvc.IsEnabled() {
-		h := captcha.NewHandler(captchaSvc)
+	if deps.Captcha != nil && deps.Captcha.IsEnabled() {
+		h := captcha.NewHandler(deps.Captcha)
 		v1.GET("/captcha", h.Generate)
 		v1.POST("/captcha/verify", h.Verify)
 		v1.POST("/captcha/turnstile-verify", h.TurnstileVerify)
 	}
 
 	// Auth routes
-	if authHandler != nil {
-		authHandler.RegisterRoutes(v1)
+	if deps.Handlers.Auth != nil {
+		deps.Handlers.Auth.RegisterRoutes(v1)
 	} else {
-		l.Warn("auth handler is nil, auth routes not registered")
+		deps.Logger.Warn("auth handler is nil, auth routes not registered")
 	}
 
-	// Admin routes
-	if adminHandler != nil {
-		adminHandler.RegisterRoutes(v1)
+	if deps.Auth != nil {
+		protected := v1.Group("")
+		protected.Use(deps.Auth.RequireAuth())
+		if deps.Handlers.User != nil {
+			deps.Handlers.User.RegisterRoutes(protected)
+		}
+		if deps.Handlers.Role != nil {
+			deps.Handlers.Role.RegisterRoutes(protected)
+		}
+		if deps.Handlers.Permission != nil {
+			deps.Handlers.Permission.RegisterRoutes(protected)
+		}
+		if deps.Handlers.RequestLog != nil && deps.Handlers.Permission != nil {
+			requestLogs := protected.Group("")
+			requestLogs.Use(deps.Handlers.Permission.Require())
+			deps.Handlers.RequestLog.RegisterRoutes(requestLogs)
+		}
 	} else {
-		l.Warn("admin handler is nil, admin routes not registered")
+		deps.Logger.Warn("auth middleware is nil, protected routes not registered")
 	}
 
 	// Yggdrasil API
-	if yggdrasilHandler != nil {
+	if deps.Handlers.Yggdrasil != nil {
 		yg := v1.Group("/yggdrasil")
-		yggdrasilHandler.RegisterRoutes(yg)
+		deps.Handlers.Yggdrasil.RegisterRoutes(yg)
 		// User status endpoint uses app JWT auth, not Yggdrasil token auth
-		if authMw != nil {
-			yg.GET("/user/status", authMw.RequireAuth(), yggdrasilHandler.UserStatus)
+		if deps.Auth != nil && deps.Handlers.Permission != nil {
+			yg.GET("/user/status", deps.Auth.RequireAuth(), deps.Handlers.Permission.Require(), deps.Handlers.Yggdrasil.UserStatus)
 		}
 	} else {
-		l.Warn("yggdrasil handler is nil, yggdrasil routes not registered")
+		deps.Logger.Warn("yggdrasil handler is nil, yggdrasil routes not registered")
 	}
 
 	// Yggdrasil ALI (API Location Indication): serve header on all frontend paths

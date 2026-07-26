@@ -26,9 +26,13 @@ type YggdrasilConfig struct {
 }
 
 type ServerConfig struct {
-	Port            string `mapstructure:"port"`
-	Mode            string `mapstructure:"mode"`
-	ShutdownTimeout int    `mapstructure:"shutdown_timeout"`
+	Port              string `mapstructure:"port"`
+	Mode              string `mapstructure:"mode"`
+	ReadHeaderTimeout int    `mapstructure:"read_header_timeout"`
+	ReadTimeout       int    `mapstructure:"read_timeout"`
+	WriteTimeout      int    `mapstructure:"write_timeout"`
+	IdleTimeout       int    `mapstructure:"idle_timeout"`
+	ShutdownTimeout   int    `mapstructure:"shutdown_timeout"`
 }
 
 type LoggerConfig struct {
@@ -59,11 +63,11 @@ type JWTConfig struct {
 }
 
 type CaptchaConfig struct {
-	Enabled     bool             `mapstructure:"enabled"`
-	Provider    string           `mapstructure:"provider"` // "gocaptcha" | "turnstile"
-	Type        string           `mapstructure:"type"`     // used only by gocaptcha: click | rotate | slide
-	CachePrefix string           `mapstructure:"cache_prefix"`
-	Turnstile   TurnstileConfig  `mapstructure:"turnstile"`
+	Enabled     bool            `mapstructure:"enabled"`
+	Provider    string          `mapstructure:"provider"` // "gocaptcha" | "turnstile"
+	Type        string          `mapstructure:"type"`     // used only by gocaptcha: click | rotate | slide
+	CachePrefix string          `mapstructure:"cache_prefix"`
+	Turnstile   TurnstileConfig `mapstructure:"turnstile"`
 }
 
 // TurnstileConfig holds Cloudflare Turnstile credentials.
@@ -82,12 +86,14 @@ type AuthConfig struct {
 }
 
 type SMTPConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"`
-	From     string `mapstructure:"from"`
-	SSL      bool   `mapstructure:"ssl"`
+	Host      string `mapstructure:"host"`
+	Port      string `mapstructure:"port"`
+	Username  string `mapstructure:"username"`
+	Password  string `mapstructure:"password"`
+	From      string `mapstructure:"from"`
+	SSL       bool   `mapstructure:"ssl"`
+	Timeout   int    `mapstructure:"timeout"`
+	QueueSize int    `mapstructure:"queue_size"`
 }
 
 type CacheConfig struct {
@@ -164,6 +170,10 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("server.port", "8080")
 	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.read_header_timeout", 5)
+	v.SetDefault("server.read_timeout", 15)
+	v.SetDefault("server.write_timeout", 30)
+	v.SetDefault("server.idle_timeout", 60)
 	v.SetDefault("server.shutdown_timeout", 10)
 
 	v.SetDefault("database.type", "sqlite")
@@ -208,6 +218,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("smtp.password", "")
 	v.SetDefault("smtp.from", "noreply@example.com")
 	v.SetDefault("smtp.ssl", false)
+	v.SetDefault("smtp.timeout", 10)
+	v.SetDefault("smtp.queue_size", 100)
 
 	v.SetDefault("yggdrasil.server_name", "Akari Yggdrasil")
 	v.SetDefault("yggdrasil.implementation_name", "akari-yggdrasil")

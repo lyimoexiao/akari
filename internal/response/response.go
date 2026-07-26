@@ -9,11 +9,11 @@ import (
 
 // Response is the unified API response envelope.
 type Response struct {
-	Code    int    `json:"code"`
-	Success bool   `json:"success"`
-	Msg     string `json:"msg"`
-	Data    any    `json:"data,omitempty"`
-	TraceID string `json:"trace_id,omitempty"`
+	Code      int    `json:"code"`
+	Success   bool   `json:"success"`
+	Msg       string `json:"msg"`
+	Data      any    `json:"data,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
 }
 
 // New creates a Response with the given fields.
@@ -26,9 +26,8 @@ func New(code int, success bool, msg string, data any) Response {
 	}
 }
 
-// writeResponse writes the unified JSON response with a trace ID.
 func writeResponse(ctx *gin.Context, httpStatus int, resp Response) {
-	resp.TraceID = middleware.GetTraceID(ctx)
+	resp.RequestID = middleware.GetRequestID(ctx)
 	ctx.JSON(httpStatus, resp)
 }
 

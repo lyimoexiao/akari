@@ -40,12 +40,18 @@ catalogs:
     '@unocss/preset-icons':
       specifier: ^66.7.5
       version: 66.7.5
+    '@unocss/preset-wind4':
+      specifier: ^66.7.5
+      version: 66.7.5
     '@vitejs/plugin-vue':
       specifier: ^6.0.8
       version: 6.0.8
     '@vue/tsconfig':
       specifier: ^0.9.1
       version: 0.9.1
+    '@vueuse/core':
+      specifier: ^14.3.0
+      version: 14.3.0
     unocss:
       specifier: ^66.7.5
       version: 66.7.5
@@ -79,6 +85,9 @@ importers:
       go-captcha-vue:
         specifier: catalog:prod
         version: 2.0.7(vue@3.5.40(typescript@6.0.3))
+      ky:
+        specifier: ^2.0.2
+        version: 2.0.2
       naive-ui:
         specifier: catalog:prod
         version: 2.44.1(vue@3.5.40(typescript@6.0.3))
@@ -91,6 +100,9 @@ importers:
       vue-router:
         specifier: catalog:prod
         version: 5.2.0(@vue/compiler-sfc@3.5.40)(pinia@4.0.2(@vue/devtools-api@8.1.5)(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3)))(rolldown@1.1.5)(vite@8.1.5(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@antfu/eslint-config':
         specifier: catalog:dev
@@ -107,12 +119,18 @@ importers:
       '@unocss/preset-icons':
         specifier: catalog:frontend
         version: 66.7.5
+      '@unocss/preset-wind4':
+        specifier: catalog:frontend
+        version: 66.7.5
       '@vitejs/plugin-vue':
         specifier: catalog:frontend
         version: 6.0.8(vite@8.1.5(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
       '@vue/tsconfig':
         specifier: catalog:frontend
         version: 0.9.1(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3))
+      '@vueuse/core':
+        specifier: catalog:frontend
+        version: 14.3.0(vue@3.5.40(typescript@6.0.3))
       eslint:
         specifier: catalog:dev
         version: 10.7.0(jiti@2.7.0)
@@ -127,7 +145,7 @@ importers:
         version: 66.7.5(vite@8.1.5(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))
       unplugin-auto-import:
         specifier: catalog:dev
-        version: 21.0.0
+        version: 21.0.0(@vueuse/core@14.3.0(vue@3.5.40(typescript@6.0.3)))
       unplugin-vue-components:
         specifier: catalog:dev
         version: 32.1.0(rolldown@1.1.5)(vite@8.1.5(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
@@ -972,6 +990,9 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
+  '@types/web-bluetooth@0.0.21':
+    resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+
   '@typescript-eslint/eslint-plugin@8.65.0':
     resolution: {integrity: sha512-IEgob78X12rHpUmtcwFsXhZdVGJtwTVP8FiCLZkR6GlYVrl2PcuB+KhCE5BlVC/eQpQnu8WXRtkHZuPar+gCRA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -1208,6 +1229,19 @@ packages:
         optional: true
       vue:
         optional: true
+
+  '@vueuse/core@14.3.0':
+    resolution: {integrity: sha512-aHfz47g0ZhMtTVHmIzMVpJy8ePhhOy68GY5bv110+5DVtZ+W7BsOx+m61UNQqfrWyPztIHIanWa3E2tib3NFIw==}
+    peerDependencies:
+      vue: ^3.5.0
+
+  '@vueuse/metadata@14.3.0':
+    resolution: {integrity: sha512-BwxmbAzwAVF50+MW57GXOUEV61nFBGnlBvrTqj49PqWJu3uw7hdu72ztXeZ33RdZtDY6kO+bfCAE1PCn88Tktw==}
+
+  '@vueuse/shared@14.3.0':
+    resolution: {integrity: sha512-bZpge9eSXwa4ToSiqJ7j6KRwhAsneMFoSz3LMWKQDkqimm3D/tbFlrklrs/IOqC8tEcYmXQZJ6N0UrjhBirVCg==}
+    peerDependencies:
+      vue: ^3.5.0
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -1893,6 +1927,10 @@ packages:
 
   kolorist@1.8.0:
     resolution: {integrity: sha512-Y+60/zizpJ3HRH8DCss+q95yr6145JXZo46OTpFvDZWLfRCE4qChOyk1b26nMaNpfHHgxagk9dXT5OP0Tfe+dQ==}
+
+  ky@2.0.2:
+    resolution: {integrity: sha512-/GmXpo9F9W+f8n4Ivr2iH+7h7wL7jLbLKWkMlpflcCRb6kGjBfTlASEXaZ9qUgNTn4VgS0P2pwxxzQ4EM6Ulgg==}
+    engines: {node: '>=22'}
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -2792,6 +2830,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -3525,6 +3566,8 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
+  '@types/web-bluetooth@0.0.21': {}
+
   '@typescript-eslint/eslint-plugin@8.65.0(@typescript-eslint/parser@8.65.0(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -3899,6 +3942,19 @@ snapshots:
   '@vue/tsconfig@0.9.1(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3))':
     optionalDependencies:
       typescript: 6.0.3
+      vue: 3.5.40(typescript@6.0.3)
+
+  '@vueuse/core@14.3.0(vue@3.5.40(typescript@6.0.3))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 14.3.0
+      '@vueuse/shared': 14.3.0(vue@3.5.40(typescript@6.0.3))
+      vue: 3.5.40(typescript@6.0.3)
+
+  '@vueuse/metadata@14.3.0': {}
+
+  '@vueuse/shared@14.3.0(vue@3.5.40(typescript@6.0.3))':
+    dependencies:
       vue: 3.5.40(typescript@6.0.3)
 
   acorn-jsx@5.3.2(acorn@8.17.0):
@@ -4548,6 +4604,8 @@ snapshots:
       json-buffer: 3.0.1
 
   kolorist@1.8.0: {}
+
+  ky@2.0.2: {}
 
   levn@0.4.1:
     dependencies:
@@ -5444,7 +5502,7 @@ snapshots:
     transitivePeerDependencies:
       - vite
 
-  unplugin-auto-import@21.0.0:
+  unplugin-auto-import@21.0.0(@vueuse/core@14.3.0(vue@3.5.40(typescript@6.0.3))):
     dependencies:
       local-pkg: 1.2.1
       magic-string: 0.30.21
@@ -5452,6 +5510,8 @@ snapshots:
       unimport: 5.7.0
       unplugin: 2.3.11
       unplugin-utils: 0.3.2
+    optionalDependencies:
+      '@vueuse/core': 14.3.0(vue@3.5.40(typescript@6.0.3))
 
   unplugin-utils@0.3.2:
     dependencies:
@@ -5687,5 +5747,7 @@ snapshots:
   yaml@2.9.0: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@4.4.3: {}
 
   zwitch@2.0.4: {}

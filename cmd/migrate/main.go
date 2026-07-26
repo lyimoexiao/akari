@@ -6,6 +6,7 @@ import (
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/logger"
+	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
 )
 
 func main() {
@@ -20,6 +21,9 @@ func main() {
 	db, err := database.New(&cfg.Database)
 	if err != nil {
 		l.Fatalw("failed to setup database", "error", err)
+	}
+	if err := yggdrasiladapter.Migrate(db); err != nil {
+		l.Fatalw("failed to migrate yggdrasil schema", "error", err)
 	}
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()

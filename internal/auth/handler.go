@@ -73,11 +73,11 @@ func (h *Handler) Register(ctx *gin.Context) {
 		return
 	}
 
-if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
-			return
-		}
+	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
+		return
+	}
 
-		resp, err := h.svc.Register(ctx.Request.Context(), &req)
+	resp, err := h.svc.Register(ctx.Request.Context(), &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrRegistrationClosed):
@@ -104,11 +104,11 @@ func (h *Handler) Login(ctx *gin.Context) {
 		return
 	}
 
-if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
-			return
-		}
+	if !h.verifyCaptcha(ctx, req.CaptchaID, req.UserAnswer, req.CaptchaToken) {
+		return
+	}
 
-		resp, err := h.svc.Login(ctx.Request.Context(), &req)
+	resp, err := h.svc.Login(ctx.Request.Context(), &req)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
 			response.Unauthorized(ctx, err.Error())

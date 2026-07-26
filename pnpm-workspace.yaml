@@ -21,13 +21,15 @@ catalogs:
   frontend:
     '@iconify/json': ^2.2.504
     '@unocss/preset-icons': ^66.7.5
+    '@unocss/preset-wind4': ^66.7.5
     '@vitejs/plugin-vue': ^6.0.8
     '@vue/tsconfig': ^0.9.1
+
+    '@vueuse/core': ^14.3.0
 
     unocss: ^66.7.5
     vite: ^8.1.5
     vite-plugin-vue-devtools: ^8.1.5
-
   prod:
     go-captcha-vue: ^2.0.7
     naive-ui: ^2.44.1

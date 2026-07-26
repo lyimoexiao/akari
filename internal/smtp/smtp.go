@@ -1,179 +1,232 @@
 package smtp
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/smtp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lyimoexiao/akari/internal/config"
+	"go.uber.org/zap"
 )
 
-// Mailer wraps an SMTP client configuration and provides convenience
-// methods for sending plain-text and HTML emails.
+const (
+	defaultTimeout   = 10 * time.Second
+	defaultQueueSize = 100
+)
+
+var (
+	ErrQueueFull = errors.New("smtp queue is full")
+	ErrClosed    = errors.New("smtp mailer is closed")
+)
+
+// Mailer queues email for bounded background SMTP delivery.
 type Mailer struct {
-	cfg  config.SMTPConfig
-	auth smtp.Auth
-	addr string
+	cfg     config.SMTPConfig
+	auth    smtp.Auth
+	addr    string
+	timeout time.Duration
+	jobs    chan outboundMessage
+	cancel  context.CancelFunc
+	logger  *zap.SugaredLogger
+
+	mu     sync.RWMutex
+	closed bool
+	wg     sync.WaitGroup
 }
 
-// New creates a new Mailer from the SMTP configuration block.
-func New(cfg *config.SMTPConfig) *Mailer {
-	addr := net.JoinHostPort(cfg.Host, cfg.Port)
+type outboundMessage struct {
+	to   []string
+	data []byte
+}
 
+// New creates a Mailer and starts its delivery worker.
+func New(cfg *config.SMTPConfig, logger *zap.SugaredLogger) *Mailer {
 	var auth smtp.Auth
 	if cfg.Username != "" {
 		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 	}
-
-	return &Mailer{
-		cfg:  *cfg,
-		auth: auth,
-		addr: addr,
+	timeout := time.Duration(cfg.Timeout) * time.Second
+	if timeout <= 0 {
+		timeout = defaultTimeout
 	}
+	queueSize := cfg.QueueSize
+	if queueSize <= 0 {
+		queueSize = defaultQueueSize
+	}
+	workerCtx, cancel := context.WithCancel(context.Background())
+	mailer := &Mailer{
+		cfg:     *cfg,
+		auth:    auth,
+		addr:    net.JoinHostPort(cfg.Host, cfg.Port),
+		timeout: timeout,
+		jobs:    make(chan outboundMessage, queueSize),
+		cancel:  cancel,
+		logger:  logger,
+	}
+	mailer.wg.Add(1)
+	go mailer.run(workerCtx)
+	return mailer
 }
 
-// Send sends a plain-text email.
-//   - to:   one or more recipient addresses
-//   - subject:  email subject
-//   - body: plain-text body
+// Send queues a plain-text email.
 func (m *Mailer) Send(to []string, subject, body string) error {
-	msg := m.buildMessage(to, subject, body, "text/plain; charset=UTF-8")
-	return m.send(to, msg)
+	return m.send(to, m.buildMessage(to, subject, body, "text/plain; charset=UTF-8"))
 }
 
-// SendHTML sends an HTML email.
-//   - to:   one or more recipient addresses
-//   - subject:  email subject
-//   - body: HTML body
+// SendHTML queues an HTML email.
 func (m *Mailer) SendHTML(to []string, subject, htmlBody string) error {
-	msg := m.buildMessage(to, subject, htmlBody, "text/html; charset=UTF-8")
-	return m.send(to, msg)
+	return m.send(to, m.buildMessage(to, subject, htmlBody, "text/html; charset=UTF-8"))
 }
 
-// SendWithTemplate sends an email with a custom body and Content-Type.
-// Useful when you want to send multipart messages or custom headers.
+// SendWithTemplate queues an email with a custom Content-Type.
 func (m *Mailer) SendWithTemplate(to []string, subject, body, contentType string) error {
-	msg := m.buildMessage(to, subject, body, contentType)
-	return m.send(to, msg)
+	return m.send(to, m.buildMessage(to, subject, body, contentType))
 }
 
-// send delivers the raw message bytes to the SMTP server.
-func (m *Mailer) send(to []string, msg []byte) error {
-	if m.cfg.SSL {
-		return m.sendSSL(to, msg)
+func (m *Mailer) send(to []string, data []byte) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return ErrClosed
 	}
-	return m.sendSTARTTLS(to, msg)
+	message := outboundMessage{
+		to:   append([]string(nil), to...),
+		data: append([]byte(nil), data...),
+	}
+	select {
+	case m.jobs <- message:
+		return nil
+	default:
+		return ErrQueueFull
+	}
 }
 
-// Close is a no-op for the standard smtp client; exists for interface
-// consistency (e.g. wire cleanup).
+// Close stops the worker and cancels any active SMTP operation.
 func (m *Mailer) Close() error {
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return nil
+	}
+	m.closed = true
+	m.cancel()
+	m.mu.Unlock()
+	m.wg.Wait()
 	return nil
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Internal helpers
-// ─────────────────────────────────────────────────────────────────
-
-// buildMessage composes the full RFC 822 message with headers.
-func (m *Mailer) buildMessage(to []string, subject, body, contentType string) []byte {
-	headers := make([]string, 0, 8)
-	headers = append(headers, fmt.Sprintf("From: %s", m.cfg.From))
-	headers = append(headers, fmt.Sprintf("To: %s", strings.Join(to, ", ")))
-	headers = append(headers, fmt.Sprintf("Subject: %s", subject))
-	headers = append(headers, fmt.Sprintf("MIME-Version: 1.0"))
-	headers = append(headers, fmt.Sprintf("Content-Type: %s", contentType))
-	headers = append(headers, fmt.Sprintf("Date: %s", time.Now().Format(time.RFC1123Z)))
-	headers = append(headers, "") // end of headers
-	headers = append(headers, body)
-
-	return []byte(strings.Join(headers, "\r\n"))
+func (m *Mailer) run(ctx context.Context) {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case message := <-m.jobs:
+			if err := m.deliver(ctx, message); err != nil && ctx.Err() == nil {
+				m.logger.Errorw("smtp delivery failed", "recipients", len(message.to), "error", err)
+			}
+		}
+	}
 }
 
-// sendSTARTTLS connects with plain SMTP then upgrades via STARTTLS.
-func (m *Mailer) sendSTARTTLS(to []string, msg []byte) error {
-	client, err := smtp.Dial(m.addr)
+func (m *Mailer) deliver(parent context.Context, message outboundMessage) error {
+	ctx, cancel := context.WithTimeout(parent, m.timeout)
+	defer cancel()
+
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", m.addr)
 	if err != nil {
 		return fmt.Errorf("smtp dial: %w", err)
 	}
-	defer client.Close()
+	defer conn.Close()
+	deadline, ok := ctx.Deadline()
+	if ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return fmt.Errorf("smtp deadline: %w", err)
+		}
+	}
+	stopDeadline := context.AfterFunc(ctx, func() {
+		_ = conn.SetDeadline(time.Now())
+	})
+	defer stopDeadline()
 
-	// STARTTLS
-	if err = client.StartTLS(&tls.Config{ServerName: m.cfg.Host}); err != nil {
+	if m.cfg.SSL {
+		return m.sendSSL(ctx, conn, message)
+	}
+	return m.sendSTARTTLS(conn, message)
+}
+
+func (m *Mailer) sendSTARTTLS(conn net.Conn, message outboundMessage) error {
+	client, err := smtp.NewClient(conn, m.cfg.Host)
+	if err != nil {
+		return fmt.Errorf("smtp new client: %w", err)
+	}
+	defer client.Close()
+	if err := client.StartTLS(m.tlsConfig()); err != nil {
 		return fmt.Errorf("smtp starttls: %w", err)
 	}
+	return m.sendMessage(client, message)
+}
 
-	// Auth
+func (m *Mailer) sendSSL(ctx context.Context, conn net.Conn, message outboundMessage) error {
+	tlsConn := tls.Client(conn, m.tlsConfig())
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		return fmt.Errorf("smtp tls handshake: %w", err)
+	}
+	client, err := smtp.NewClient(tlsConn, m.cfg.Host)
+	if err != nil {
+		return fmt.Errorf("smtp new client: %w", err)
+	}
+	defer client.Close()
+	return m.sendMessage(client, message)
+}
+
+func (m *Mailer) sendMessage(client *smtp.Client, message outboundMessage) error {
 	if m.auth != nil {
-		if err = client.Auth(m.auth); err != nil {
+		if err := client.Auth(m.auth); err != nil {
 			return fmt.Errorf("smtp auth: %w", err)
 		}
 	}
-
-	// Send
-	if err = client.Mail(m.cfg.From); err != nil {
+	if err := client.Mail(m.cfg.From); err != nil {
 		return fmt.Errorf("smtp mail from: %w", err)
 	}
-	for _, rcpt := range to {
-		if err = client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("smtp rcpt %q: %w", rcpt, err)
+	for _, recipient := range message.to {
+		if err := client.Rcpt(recipient); err != nil {
+			return fmt.Errorf("smtp rcpt %q: %w", recipient, err)
 		}
 	}
-	w, err := client.Data()
+	writer, err := client.Data()
 	if err != nil {
 		return fmt.Errorf("smtp data: %w", err)
 	}
-	if _, err = w.Write(msg); err != nil {
+	if _, err := writer.Write(message.data); err != nil {
 		return fmt.Errorf("smtp write: %w", err)
 	}
-	if err = w.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		return fmt.Errorf("smtp data close: %w", err)
 	}
 	return client.Quit()
 }
 
-// sendSSL connects over a direct TLS connection (SMTPS, port 465).
-func (m *Mailer) sendSSL(to []string, msg []byte) error {
-	conn, err := tls.Dial("tcp", m.addr, &tls.Config{ServerName: m.cfg.Host})
-	if err != nil {
-		return fmt.Errorf("smtp tls dial: %w", err)
+func (m *Mailer) buildMessage(to []string, subject, body, contentType string) []byte {
+	headers := []string{
+		fmt.Sprintf("From: %s", m.cfg.From),
+		fmt.Sprintf("To: %s", strings.Join(to, ", ")),
+		fmt.Sprintf("Subject: %s", subject),
+		"MIME-Version: 1.0",
+		fmt.Sprintf("Content-Type: %s", contentType),
+		fmt.Sprintf("Date: %s", time.Now().Format(time.RFC1123Z)),
+		"",
+		body,
 	}
+	return []byte(strings.Join(headers, "\r\n"))
+}
 
-	client, err := smtp.NewClient(conn, m.cfg.Host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("smtp new client: %w", err)
-	}
-	defer client.Close()
-
-	// Auth
-	if m.auth != nil {
-		if err = client.Auth(m.auth); err != nil {
-			return fmt.Errorf("smtp auth: %w", err)
-		}
-	}
-
-	// Send
-	if err = client.Mail(m.cfg.From); err != nil {
-		return fmt.Errorf("smtp mail from: %w", err)
-	}
-	for _, rcpt := range to {
-		if err = client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("smtp rcpt %q: %w", rcpt, err)
-		}
-	}
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("smtp data: %w", err)
-	}
-	if _, err = w.Write(msg); err != nil {
-		return fmt.Errorf("smtp write: %w", err)
-	}
-	if err = w.Close(); err != nil {
-		return fmt.Errorf("smtp data close: %w", err)
-	}
-	return client.Quit()
+func (m *Mailer) tlsConfig() *tls.Config {
+	return &tls.Config{ServerName: m.cfg.Host, MinVersion: tls.VersionTLS12}
 }

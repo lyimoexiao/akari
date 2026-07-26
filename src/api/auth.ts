@@ -1,38 +1,51 @@
-import type { AuthResp, ForgotPasswordReq, LoginReq, RegisterReq, ResetPasswordReq, UserResp, YggdrasilStatusResp } from '@/types/auth'
-import { http } from '@/api/index'
+import type { ForgotPasswordReq, LoginReq, RegisterReq, ResetPasswordReq } from '@/types/auth'
+import { z } from 'zod'
+import {
+  authResponseSchema,
+  permissionListSchema,
+  userResponseSchema,
+  yggdrasilStatusSchema,
+} from '@/types/auth'
+import { http } from './index'
 
-export function registerUser(data: RegisterReq): Promise<AuthResp> {
-  return http.post<AuthResp>('/auth/register', data)
+const messageSchema = z.string()
+
+export function registerUser(data: RegisterReq) {
+  return http.post({ path: 'auth/register', body: data, schema: authResponseSchema })
 }
 
-export function loginUser(data: LoginReq): Promise<AuthResp> {
-  return http.post<AuthResp>('/auth/login', data)
+export function loginUser(data: LoginReq) {
+  return http.post({ path: 'auth/login', body: data, schema: authResponseSchema })
 }
 
-export function getCurrentUser(token: string): Promise<UserResp> {
-  return http.get<UserResp>('/auth/me', token)
+export function getCurrentUser(token: string) {
+  return http.get({ path: 'auth/me', token, schema: userResponseSchema })
 }
 
-export function sendVerificationEmail(token: string): Promise<string> {
-  return http.post<string>('/auth/verify-email/send', undefined, token)
+export function getCurrentPermissions(token: string) {
+  return http.get({ path: 'auth/permission', token, schema: permissionListSchema })
 }
 
-export function verifyEmail(token: string, verificationToken: string): Promise<string> {
-  return http.post<string>('/auth/verify-email', { token: verificationToken }, token)
+export function sendVerificationEmail(token: string) {
+  return http.post({ path: 'auth/verify-email/send', token, schema: messageSchema })
 }
 
-export function logoutUser(token: string): Promise<string> {
-  return http.post<string>('/auth/logout', undefined, token)
+export function verifyEmail(token: string, verificationToken: string) {
+  return http.post({ path: 'auth/verify-email', token, body: { token: verificationToken }, schema: messageSchema })
 }
 
-export function getYggdrasilStatus(token: string): Promise<YggdrasilStatusResp> {
-  return http.get<YggdrasilStatusResp>('/yggdrasil/user/status', token)
+export function logoutUser(token: string) {
+  return http.post({ path: 'auth/logout', token, schema: messageSchema })
 }
 
-export function requestPasswordReset(data: ForgotPasswordReq): Promise<string> {
-  return http.post<string>('/auth/password-reset/request', data)
+export function getYggdrasilStatus(token: string) {
+  return http.get({ path: 'yggdrasil/user/status', token, schema: yggdrasilStatusSchema })
 }
 
-export function resetPassword(data: ResetPasswordReq): Promise<string> {
-  return http.post<string>('/auth/password-reset', data)
+export function requestPasswordReset(data: ForgotPasswordReq) {
+  return http.post({ path: 'auth/password-reset/request', body: data, schema: messageSchema })
+}
+
+export function resetPassword(data: ResetPasswordReq) {
+  return http.post({ path: 'auth/password-reset', body: data, schema: messageSchema })
 }

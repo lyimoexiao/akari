@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,14 +14,21 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/lyimoexiao/akari/internal/config"
+	"github.com/lyimoexiao/akari/internal/logger"
 	"github.com/lyimoexiao/akari/pkg/util"
 )
+
+// ErrCacheMiss indicates the requested key was not found in the cache.
+// Callers can use errors.Is to distinguish "not found" from other errors
+// (e.g. connection failure, deserialization error).
+var ErrCacheMiss = errors.New("cache: key not found")
 
 // Cache defines the interface for cache operations.
 type Cache interface {
 	Get(ctx context.Context, key string, dest interface{}) error
 	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
 	Del(ctx context.Context, keys ...string) error
+	Ping(ctx context.Context) error
 	Close() error
 }
 
@@ -34,6 +42,8 @@ func New(cfg *config.CacheConfig) Cache {
 		return newFileCache(&cfg.File)
 	default:
 		// "memory" or unknown → memory cache (safe fallback)
+		logger.L.Warn("Cache type is 'memory' — token revocation state is local to this process. " +
+			"Multi-instance deployments MUST use 'redis' to share revocation state across all instances.")
 		return newMemoryCache(&cfg.Memory)
 	}
 }
@@ -68,7 +78,7 @@ func newMemoryCache(cfg *config.MemoryCacheConfig) *memoryCache {
 func (c *memoryCache) Get(_ context.Context, key string, dest interface{}) error {
 	val, ok := c.cache.Get(key)
 	if !ok {
-		return fmt.Errorf("cache key %q not found", key)
+		return fmt.Errorf("%w: %q", ErrCacheMiss, key)
 	}
 
 	entry, ok := val.(memoryEntry)
@@ -77,7 +87,7 @@ func (c *memoryCache) Get(_ context.Context, key string, dest interface{}) error
 	}
 	if !entry.ExpiresAt.IsZero() && time.Now().After(entry.ExpiresAt) {
 		c.cache.Remove(key)
-		return fmt.Errorf("cache key %q expired", key)
+		return fmt.Errorf("%w: %q (expired)", ErrCacheMiss, key)
 	}
 
 	data, err := json.Marshal(entry.Value)
@@ -106,6 +116,10 @@ func (c *memoryCache) Del(_ context.Context, keys ...string) error {
 	return nil
 }
 
+func (c *memoryCache) Ping(ctx context.Context) error {
+	return ctx.Err()
+}
+
 func (c *memoryCache) Close() error {
 	c.cache.Purge()
 	return nil
@@ -128,24 +142,31 @@ func newRedisCache(cfg *config.RedisCacheConfig) *redisCache {
 	return &redisCache{client: rdb}
 }
 
-func (c *redisCache) Get(_ context.Context, key string, dest interface{}) error {
-	val, err := c.client.Get(context.Background(), key).Bytes()
+func (c *redisCache) Get(ctx context.Context, key string, dest interface{}) error {
+	val, err := c.client.Get(ctx, key).Bytes()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return fmt.Errorf("%w: %q", ErrCacheMiss, key)
+		}
 		return err
 	}
 	return json.Unmarshal(val, dest)
 }
 
-func (c *redisCache) Set(_ context.Context, key string, value interface{}, ttl time.Duration) error {
+func (c *redisCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return c.client.Set(context.Background(), key, data, ttl).Err()
+	return c.client.Set(ctx, key, data, ttl).Err()
 }
 
-func (c *redisCache) Del(_ context.Context, keys ...string) error {
-	return c.client.Del(context.Background(), keys...).Err()
+func (c *redisCache) Del(ctx context.Context, keys ...string) error {
+	return c.client.Del(ctx, keys...).Err()
+}
+
+func (c *redisCache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
 }
 
 func (c *redisCache) Close() error {
@@ -177,6 +198,9 @@ func (c *fileCache) Get(_ context.Context, key string, dest interface{}) error {
 
 	data, err := os.ReadFile(filepath.Join(c.dir, key+".json"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%w: %q", ErrCacheMiss, key)
+		}
 		return err
 	}
 
@@ -185,7 +209,7 @@ func (c *fileCache) Get(_ context.Context, key string, dest interface{}) error {
 		return err
 	}
 	if !entry.ExpiresAt.IsZero() && time.Now().After(entry.ExpiresAt) {
-		return fmt.Errorf("cache key %q expired", key)
+		return fmt.Errorf("%w: %q (expired)", ErrCacheMiss, key)
 	}
 
 	raw, _ := json.Marshal(entry.Value)
@@ -217,6 +241,25 @@ func (c *fileCache) Del(_ context.Context, keys ...string) error {
 		_ = os.Remove(filepath.Join(c.dir, key+".json"))
 	}
 	return nil
+}
+
+func (c *fileCache) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	probe, err := os.CreateTemp(c.dir, ".health-*")
+	if err != nil {
+		return fmt.Errorf("create cache probe: %w", err)
+	}
+	probePath := probe.Name()
+	if err := probe.Close(); err != nil {
+		_ = os.Remove(probePath)
+		return fmt.Errorf("close cache probe: %w", err)
+	}
+	if err := os.Remove(probePath); err != nil {
+		return fmt.Errorf("remove cache probe: %w", err)
+	}
+	return ctx.Err()
 }
 
 func (c *fileCache) Close() error {

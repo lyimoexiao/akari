@@ -1,6 +1,10 @@
 server:
   port: 8080
   mode: debug
+  read_header_timeout: 5
+  read_timeout: 15
+  write_timeout: 30
+  idle_timeout: 60
   shutdown_timeout: 10
 
 database:
@@ -52,6 +56,8 @@ smtp:
   password: your-password
   from: your-email@example.com
   ssl: true
+  timeout: 10
+  queue_size: 100
 
 logger:
   level: debug

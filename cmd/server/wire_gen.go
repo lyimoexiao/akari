@@ -8,17 +8,28 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/lyimoexiao/akari/internal/admin"
 	"github.com/lyimoexiao/akari/internal/auth"
+	"github.com/lyimoexiao/akari/internal/authadapter"
 	"github.com/lyimoexiao/akari/internal/cache"
 	"github.com/lyimoexiao/akari/internal/captcha"
 	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/internal/database"
 	"github.com/lyimoexiao/akari/internal/logger"
+	"github.com/lyimoexiao/akari/internal/permission"
+	"github.com/lyimoexiao/akari/internal/rbacadapter"
+	"github.com/lyimoexiao/akari/internal/requestlog"
+	"github.com/lyimoexiao/akari/internal/requestlogadapter"
+	"github.com/lyimoexiao/akari/internal/role"
 	"github.com/lyimoexiao/akari/internal/router"
+	"github.com/lyimoexiao/akari/internal/routeradapter"
 	"github.com/lyimoexiao/akari/internal/smtp"
+	"github.com/lyimoexiao/akari/internal/user"
+	"github.com/lyimoexiao/akari/internal/useradapter"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
+	"github.com/lyimoexiao/akari/internal/yggdrasiladapter"
 	"github.com/lyimoexiao/akari/pkg/jwt"
+	"github.com/lyimoexiao/akari/pkg/util"
+	"github.com/lyimoexiao/akari/pkg/version"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strings"
@@ -41,26 +52,44 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	service := ProvideCaptcha(config, cache)
-	manager := ProvideJWTManager(config)
-	mailer, cleanup3, err := ProvideMailer(config)
+	healthChecker := ProvideHealthChecker(db, cache)
+	repository := ProvideRequestLogRepository(db)
+	sugaredLogger, cleanup3, err := ProvideLogger(config)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	authService := ProvideAuthService(db, cache, manager, mailer, config)
-	middleware := ProvideAuthMiddleware(authService)
-	sugaredLogger, cleanup4, err := ProvideLogger(config)
+	handlerFunc := ProvideRequestLogMiddleware(repository, sugaredLogger)
+	service := ProvideCaptcha(config, cache)
+	manager := ProvideJWTManager(config)
+	mailer, cleanup4, err := ProvideMailer(config, sugaredLogger)
 	if err != nil {
 		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
+	rbacadapterManager, err := ProvideRBACManager(db)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	roleService := ProvideRoleService(rbacadapterManager)
+	authService := ProvideAuthService(db, cache, manager, mailer, config, roleService, sugaredLogger)
+	middleware := ProvideAuthMiddleware(authService)
 	handler := ProvideAuthHandler(authService, middleware, config, service, sugaredLogger)
-	adminService := ProvideAdminService(db)
-	adminHandler := ProvideAdminHandler(adminService, middleware, sugaredLogger)
+	userService := ProvideUserService(db)
+	permissionService := ProvidePermissionService(rbacadapterManager)
+	permissionMiddleware := ProvidePermissionMiddleware(permissionService)
+	userHandler := ProvideUserHandler(userService, permissionMiddleware, sugaredLogger)
+	roleHandler := ProvideRoleHandler(roleService, permissionMiddleware, sugaredLogger)
+	permissionHandler := ProvidePermissionHandler(permissionService, permissionMiddleware, sugaredLogger)
+	requestlogService := ProvideRequestLogService(repository)
+	requestlogHandler := ProvideRequestLogHandler(requestlogService, sugaredLogger)
 	keyManager, err := ProvideYggdrasilKeyManager()
 	if err != nil {
 		cleanup4()
@@ -71,7 +100,23 @@ func Initialize(cfgPath string) (*App, func(), error) {
 	}
 	yggdrasilService := ProvideYggdrasilService(db, cache, config, sugaredLogger, keyManager)
 	yggdrasilHandler := ProvideYggdrasilHandler(yggdrasilService, sugaredLogger)
-	engine := ProvideEngine(config, db, cache, service, handler, adminHandler, yggdrasilHandler, middleware, sugaredLogger)
+	handlers := &router.Handlers{
+		Auth:       handler,
+		User:       userHandler,
+		Role:       roleHandler,
+		Permission: permissionHandler,
+		RequestLog: requestlogHandler,
+		Yggdrasil:  yggdrasilHandler,
+	}
+	dependencies := &router.Dependencies{
+		Health:         healthChecker,
+		RequestLogging: handlerFunc,
+		Captcha:        service,
+		Handlers:       handlers,
+		Auth:           middleware,
+		Logger:         sugaredLogger,
+	}
+	engine := ProvideEngine(config, dependencies)
 	app := &App{
 		Config:     config,
 		Engine:     engine,
@@ -114,6 +159,10 @@ func ProvideDB(cfg *config.Config) (*gorm.DB, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := yggdrasiladapter.Migrate(db); err != nil {
+		_ = database.Close(db)
+		return nil, nil, err
+	}
 	cleanup := func() {
 		_ = database.Close(db)
 	}
@@ -128,8 +177,8 @@ func ProvideCache(cfg *config.Config) (cache.Cache, func(), error) {
 	return c, cleanup, nil
 }
 
-func ProvideMailer(cfg *config.Config) (*smtp.Mailer, func(), error) {
-	m := smtp.New(&cfg.SMTP)
+func ProvideMailer(cfg *config.Config, logger2 *zap.SugaredLogger) (*smtp.Mailer, func(), error) {
+	m := smtp.New(&cfg.SMTP, logger2)
 	cleanup := func() {
 		_ = m.Close()
 	}
@@ -137,17 +186,11 @@ func ProvideMailer(cfg *config.Config) (*smtp.Mailer, func(), error) {
 }
 
 func ProvideEngine(
-	config *config.Config,
-	db *gorm.DB,
-	c cache.Cache,
-	captchaSvc *captcha.Service,
-	handler *auth.Handler,
-	adminHandler *admin.Handler,
-	yggdrasilHandler *yggdrasil.Handler,
-	authMw *auth.Middleware, logger2 *zap.SugaredLogger,
+	cfg *config.Config,
+	deps *router.Dependencies,
 ) *gin.Engine {
-	setGinMode(config.Server.Mode)
-	return router.Setup(db, c, captchaSvc, handler, adminHandler, yggdrasilHandler, authMw, logger2)
+	setGinMode(cfg.Server.Mode)
+	return router.Setup(deps)
 }
 
 func ProvideCaptcha(cfg *config.Config, c cache.Cache) *captcha.Service {
@@ -169,8 +212,22 @@ func ProvideAuthService(
 	jwtManager *jwt.Manager,
 	mailer *smtp.Mailer,
 	cfg *config.Config,
+	roles *role.Service, logger2 *zap.SugaredLogger,
 ) *auth.Service {
-	return auth.NewService(db, c, jwtManager, mailer, &cfg.Auth, &cfg.JWT)
+	return auth.NewService(auth.Dependencies{
+		Users:  authadapter.NewUserRepository(db),
+		Roles:  roles,
+		Tokens: authadapter.NewJWTManager(jwtManager),
+		Store:  authadapter.NewTokenStore(c, logger2),
+		Mailer: mailer,
+		Settings: auth.Settings{
+			RegistrationEnabled:      cfg.Auth.RegistrationEnabled,
+			EmailVerificationEnabled: cfg.Auth.EmailVerificationEnabled,
+			PasswordResetEnabled:     cfg.Auth.PasswordResetEnabled,
+			VerifyEmailTokenTTL:      util.ParseDuration(cfg.Auth.VerifyEmailTokenTTL, 2*time.Hour),
+			PasswordResetTokenTTL:    util.ParseDuration(cfg.Auth.PasswordResetTokenTTL, 30*time.Minute),
+		},
+	})
 }
 
 func ProvideAuthHandler(
@@ -189,21 +246,80 @@ func ProvideAuthMiddleware(svc *auth.Service) *auth.Middleware {
 	return auth.NewMiddleware(svc)
 }
 
-func ProvideAdminService(db *gorm.DB) *admin.Service {
-	return admin.NewService(db)
+func ProvideRBACManager(db *gorm.DB) (*rbacadapter.Manager, error) {
+	return rbacadapter.NewManager(db)
 }
 
-func ProvideAdminHandler(svc *admin.Service, mw *auth.Middleware, logger2 *zap.SugaredLogger) *admin.Handler {
-	return admin.NewHandler(svc, mw, logger2)
+func ProvidePermissionService(manager *rbacadapter.Manager) *permission.Service {
+	return permission.NewService(manager)
 }
 
-func ProvideYggdrasilKeyManager() (*yggdrasil.KeyManager, error) {
-
-	return yggdrasil.NewKeyManager("data")
+func ProvidePermissionMiddleware(svc *permission.Service) *permission.Middleware {
+	return permission.NewMiddleware(svc)
 }
 
-func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, logger2 *zap.SugaredLogger, km *yggdrasil.KeyManager) *yggdrasil.Service {
-	return yggdrasil.NewService(db, c, &cfg.Auth, logger2, km, &cfg.Yggdrasil)
+func ProvidePermissionHandler(svc *permission.Service, middleware *permission.Middleware, logger2 *zap.SugaredLogger) *permission.Handler {
+	return permission.NewHandler(svc, middleware, logger2)
+}
+
+func ProvideRequestLogRepository(db *gorm.DB) *requestlogadapter.Repository {
+	return requestlogadapter.NewRepository(db)
+}
+
+func ProvideRequestLogService(repository *requestlogadapter.Repository) *requestlog.Service {
+	return requestlog.NewService(repository)
+}
+
+func ProvideRequestLogMiddleware(repository *requestlogadapter.Repository, logger2 *zap.SugaredLogger) gin.HandlerFunc {
+	return requestlog.Middleware(repository, logger2)
+}
+
+func ProvideRequestLogHandler(svc *requestlog.Service, logger2 *zap.SugaredLogger) *requestlog.Handler {
+	return requestlog.NewHandler(svc, logger2)
+}
+
+func ProvideUserService(db *gorm.DB) *user.Service {
+	return user.NewService(user.Dependencies{
+		Repository: useradapter.NewRepository(db),
+		Clock:      useradapter.Clock{},
+		Hasher:     useradapter.PasswordHasher{},
+	})
+}
+
+func ProvideUserHandler(svc *user.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *user.Handler {
+	return user.NewHandler(svc, permissions, logger2)
+}
+
+func ProvideRoleService(manager *rbacadapter.Manager) *role.Service {
+	return role.NewService(role.Dependencies{Repository: manager, Policies: manager})
+}
+
+func ProvideRoleHandler(svc *role.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *role.Handler {
+	return role.NewHandler(svc, permissions, logger2)
+}
+
+func ProvideHealthChecker(db *gorm.DB, cacheBackend cache.Cache) router.HealthChecker {
+	return routeradapter.NewHealthChecker(db, cacheBackend)
+}
+
+func ProvideYggdrasilKeyManager() (*yggdrasiladapter.KeyManager, error) {
+
+	return yggdrasiladapter.NewKeyManager("data")
+}
+
+func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, logger2 *zap.SugaredLogger, km *yggdrasiladapter.KeyManager) *yggdrasil.Service {
+	return yggdrasil.NewService(yggdrasil.Dependencies{
+		Repository: yggdrasiladapter.NewRepository(db),
+		Sessions:   yggdrasiladapter.NewSessionStore(c),
+		Signer:     km,
+		Reporter:   yggdrasiladapter.NewSigningFailureReporter(logger2),
+		Settings: yggdrasil.Settings{
+			EmailVerificationEnabled: cfg.Auth.EmailVerificationEnabled,
+			ServerName:               cfg.Yggdrasil.ServerName,
+			ImplementationName:       cfg.Yggdrasil.ImplementationName,
+			ImplementationVersion:    version.Version,
+		},
+	})
 }
 
 func ProvideYggdrasilHandler(svc *yggdrasil.Service, logger2 *zap.SugaredLogger) *yggdrasil.Handler {

@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "go-captcha-vue": "catalog:prod",
+    "ky": "^2.0.2",
     "naive-ui": "catalog:prod",
     "pinia": "catalog:prod",
     "vue": "catalog:prod",
-    "vue-router": "catalog:prod"
+    "vue-router": "catalog:prod",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
@@ -27,8 +29,10 @@
     "@tsconfig/node24": "catalog:dev",
     "@types/node": "catalog:dev",
     "@unocss/preset-icons": "catalog:frontend",
+    "@unocss/preset-wind4": "catalog:frontend",
     "@vitejs/plugin-vue": "catalog:frontend",
     "@vue/tsconfig": "catalog:frontend",
+    "@vueuse/core": "catalog:frontend",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "typescript": "catalog:dev",

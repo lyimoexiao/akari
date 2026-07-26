@@ -1,62 +1,67 @@
-export interface AuthResp {
-  token: string
-  user: UserResp
-}
+import { z } from 'zod'
 
-export interface UserResp {
-  id: number
-  username: string
-  email: string
-  role: 'super_admin' | 'staff' | 'user'
-  email_verified_at: string | null
-  created_at: string
-}
+export const BUILT_IN_ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  STAFF: 'staff',
+  USER: 'user',
+} as const
+
+export const userResponseSchema = z.object({
+  id: z.number().int().positive(),
+  username: z.string().min(1),
+  email: z.string().min(1),
+  role: z.string().min(1),
+  email_verified_at: z.string().nullable().optional(),
+  created_at: z.string().min(1),
+}).transform(user => ({
+  ...user,
+  email_verified_at: user.email_verified_at ?? null,
+}))
+
+export const authResponseSchema = z.object({
+  token: z.string().min(1),
+  user: userResponseSchema,
+})
+
+export const permissionListSchema = z.object({
+  permissions: z.array(z.string()),
+})
+
+export const yggdrasilStatusSchema = z.object({
+  has_profile: z.boolean(),
+  profile_uuid: z.string().optional(),
+  profile_name: z.string().optional(),
+  last_login_at: z.string().optional(),
+  last_login_ip: z.string().optional(),
+})
+
+export type AuthResp = z.infer<typeof authResponseSchema>
+export type UserResp = z.infer<typeof userResponseSchema>
+export type YggdrasilStatusResp = z.infer<typeof yggdrasilStatusSchema>
+export type BuiltInRole = (typeof BUILT_IN_ROLES)[keyof typeof BUILT_IN_ROLES]
+
+export type CaptchaAnswer = Readonly<Record<string, unknown>>
 
 export interface LoginReq {
-  username: string
-  password: string
-  captcha_id?: string
-  user_answer?: Record<string, unknown>
-  captcha_token?: string
+  readonly username: string
+  readonly password: string
+  readonly captcha_id?: string
+  readonly user_answer?: CaptchaAnswer
+  readonly captcha_token?: string
 }
 
-export interface RegisterReq {
-  username: string
-  email: string
-  password: string
-  captcha_id?: string
-  user_answer?: Record<string, unknown>
-  captcha_token?: string
-}
-
-export interface YggdrasilStatusResp {
-  has_profile: boolean
-  profile_uuid?: string
-  profile_name?: string
-  last_login_at?: string
-  last_login_ip?: string
-}
-
-export interface ApiError {
-  error: string
+export type RegisterReq = LoginReq & {
+  readonly email: string
 }
 
 export interface ForgotPasswordReq {
-  email: string
-  captcha_id?: string
-  user_answer?: Record<string, unknown>
-  captcha_token?: string
+  readonly email: string
+  readonly captcha_id?: string
+  readonly user_answer?: CaptchaAnswer
+  readonly captcha_token?: string
 }
 
 export interface ResetPasswordReq {
-  token: string
-  password: string
+  readonly token: string
+  readonly password: string
 }
-
-export const ROLES = {
-  SUPER_ADMIN: 'super_admin' as const,
-  STAFF: 'staff' as const,
-  USER: 'user' as const,
-}
-
-export type Role = (typeof ROLES)[keyof typeof ROLES]

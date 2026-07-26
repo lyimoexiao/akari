@@ -178,8 +178,8 @@ func (s *Service) Generate(ctx context.Context) (map[string]any, error) {
 	switch s.cfg.Provider {
 	case "turnstile":
 		return map[string]any{
-			"provider":  "turnstile",
-			"site_key":  s.cfg.Turnstile.SiteKey,
+			"provider": "turnstile",
+			"site_key": s.cfg.Turnstile.SiteKey,
 		}, nil
 	default:
 		return s.generateGoCaptcha(ctx)

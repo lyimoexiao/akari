@@ -36,7 +36,7 @@ func (m *Middleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := m.svc.GetJWTManager().ValidateToken(tokenString)
+		claims, err := m.svc.ValidateToken(tokenString)
 		if err != nil {
 			response.Unauthorized(ctx, "令牌无效或已过期")
 			ctx.Abort()
@@ -56,36 +56,6 @@ func (m *Middleware) RequireAuth() gin.HandlerFunc {
 		ctx.Set(CtxKeyRole, claims.Role)
 
 		ctx.Next()
-	}
-}
-
-// RequireRole returns a middleware that checks if the authenticated user
-// has at least one of the specified roles.
-func (m *Middleware) RequireRole(roles ...string) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		userRole, exists := ctx.Get(CtxKeyRole)
-		if !exists {
-			response.Unauthorized(ctx, "需要认证")
-			ctx.Abort()
-			return
-		}
-
-		roleStr, ok := userRole.(string)
-		if !ok {
-			response.Forbidden(ctx, "角色数据无效")
-			ctx.Abort()
-			return
-		}
-
-		for _, allowed := range roles {
-			if roleStr == allowed {
-				ctx.Next()
-				return
-			}
-		}
-
-		response.Forbidden(ctx, "权限不足")
-		ctx.Abort()
 	}
 }
 

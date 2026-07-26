@@ -71,3 +71,4 @@ dist/
 # Data
 data/
 configs/config.yaml
+.tmp/

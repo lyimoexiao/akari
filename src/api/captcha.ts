@@ -1,28 +1,56 @@
-import { http } from '@/api/index'
+import { z } from 'zod'
+import { http } from './index'
 
-export interface CaptchaEnvelope {
-  enabled: boolean
-  data: CaptchaData | TurnstileData
-}
+const clickCaptchaSchema = z.object({
+  captcha_id: z.string(),
+  type: z.literal('click'),
+  master_image: z.string(),
+  thumb_image: z.string(),
+})
 
-export interface CaptchaData {
-  captcha_id: string
-  type: string
-  master_image: string
-  thumb_image?: string
-  tile_image?: string
-  tile_width?: number
-  tile_height?: number
-  thumb_x?: number
-  thumb_y?: number
-  angle?: number
-}
+const rotateCaptchaSchema = z.object({
+  captcha_id: z.string(),
+  type: z.literal('rotate'),
+  master_image: z.string(),
+  thumb_image: z.string(),
+  angle: z.number(),
+})
 
-export interface TurnstileData {
-  provider: 'turnstile'
-  site_key: string
-}
+const slideCaptchaSchema = z.object({
+  captcha_id: z.string(),
+  type: z.literal('slide'),
+  master_image: z.string(),
+  tile_image: z.string(),
+  tile_width: z.number(),
+  tile_height: z.number(),
+  thumb_x: z.number(),
+  thumb_y: z.number(),
+})
 
-export function fetchCaptcha(): Promise<CaptchaEnvelope> {
-  return http.get<CaptchaEnvelope>('/captcha')
+const turnstileDataSchema = z.object({
+  provider: z.literal('turnstile'),
+  site_key: z.string(),
+})
+
+export const captchaChallengeSchema = z.union([
+  clickCaptchaSchema,
+  rotateCaptchaSchema,
+  slideCaptchaSchema,
+  turnstileDataSchema,
+])
+
+const captchaEnvelopeSchema = z.union([
+  z.object({ enabled: z.literal(false) }).transform(() => ({ enabled: false as const, data: null })),
+  z.object({ enabled: z.literal(true), data: captchaChallengeSchema }),
+])
+
+export type CaptchaData = z.infer<typeof clickCaptchaSchema>
+  | z.infer<typeof rotateCaptchaSchema>
+  | z.infer<typeof slideCaptchaSchema>
+export type TurnstileData = z.infer<typeof turnstileDataSchema>
+export type CaptchaChallenge = z.infer<typeof captchaChallengeSchema>
+export type CaptchaEnvelope = z.infer<typeof captchaEnvelopeSchema>
+
+export function fetchCaptcha() {
+  return http.get({ path: 'captcha', schema: captchaEnvelopeSchema })
 }

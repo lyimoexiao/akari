@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lyimoexiao/akari/internal/config"
 	"github.com/lyimoexiao/akari/pkg/version"
 )
 
@@ -21,10 +22,7 @@ func main() {
 
 	shutdownTimeout := time.Duration(app.Config.Server.ShutdownTimeout) * time.Second
 
-	srv := &http.Server{
-		Addr:    ":" + app.Config.Server.Port,
-		Handler: app.Engine,
-	}
+	srv := newHTTPServer(app.Config, app.Engine)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -52,4 +50,15 @@ func main() {
 	}
 
 	app.Logger.Info("server stopped")
+}
+
+func newHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              ":" + cfg.Server.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
+		ReadTimeout:       time.Duration(cfg.Server.ReadTimeout) * time.Second,
+		WriteTimeout:      time.Duration(cfg.Server.WriteTimeout) * time.Second,
+		IdleTimeout:       time.Duration(cfg.Server.IdleTimeout) * time.Second,
+	}
 }

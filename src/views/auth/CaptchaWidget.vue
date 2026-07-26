@@ -1,121 +1,98 @@
 <script setup lang="ts">
-import type { CaptchaData, TurnstileData } from '@/api/captcha'
-import { onMounted, onUnmounted, ref } from 'vue'
+import type { CaptchaChallenge } from '@/api/captcha'
+import type { CaptchaAnswer } from '@/types/auth'
+import { useScriptTag } from '@vueuse/core'
+import { onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { z } from 'zod'
 
-const props = defineProps<{
-  captcha: CaptchaData | TurnstileData
-}>()
-
+const props = defineProps<{ captcha: CaptchaChallenge }>()
 const emit = defineEmits<{
-  (e: 'result', value: Record<string, unknown>): void
-  (e: 'refresh'): void
-  (e: 'close'): void
+  result: [value: CaptchaAnswer]
+  refresh: []
+  close: []
 }>()
 
-// ── go-captcha ──
-const captchaRef = ref<any>(null)
+const slidePointSchema = z.object({ x: z.number(), y: z.number().optional() })
+const turnstileContainer = useTemplateRef<HTMLDivElement>('turnstile')
+let turnstileWidgetId: string | null = null
 
-function onConfirmClick(dots: any, _reset: () => void) {
-  emit('result', { dots } as Record<string, unknown>)
+const { load: loadTurnstile } = useScriptTag(
+  'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
+  undefined,
+  { manual: true, defer: true },
+)
+
+function confirmClick(dots: unknown): boolean {
+  emit('result', { dots })
   return true
 }
 
-function onConfirmRotate(angle: number, _reset: () => void) {
-  emit('result', { angle } as Record<string, unknown>)
+function confirmRotate(angle: number): boolean {
+  emit('result', { angle })
   return true
 }
 
-function onConfirmSlide(point: any, _reset: () => void) {
-  emit('result', { x: point?.x ?? 0, y: point?.y ?? 0 } as Record<string, unknown>)
+function confirmSlide(point: unknown): boolean {
+  const parsed = slidePointSchema.safeParse(point)
+  if (!parsed.success) {
+    emit('refresh')
+    return false
+  }
+  emit('result', { x: parsed.data.x, y: parsed.data.y ?? 0 })
   return true
 }
 
-// ── Turnstile ──
-const turnstileContainer = ref<HTMLDivElement | null>(null)
-const turnstileWidgetId = ref<string | null>(null)
-
-function loadTurnstileScript(): Promise<void> {
-  return new Promise((resolve) => {
-    if ((window as any).turnstile) {
-      resolve()
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad'
-    script.async = true
-    script.defer = true
-    ;(window as any).onTurnstileLoad = () => {
-      resolve()
-    }
-    document.head.appendChild(script)
-  })
-}
-
-function renderTurnstile() {
-  if (!turnstileContainer.value || !(window as any).turnstile)
+function renderTurnstile(): void {
+  if (!turnstileContainer.value || !window.turnstile || !('provider' in props.captcha))
     return
-  const data = props.captcha as TurnstileData
-  turnstileWidgetId.value = (window as any).turnstile.render(turnstileContainer.value, {
-    'sitekey': data.site_key,
-    'callback': (token: string) => {
-      emit('result', { turnstile_token: token } as Record<string, unknown>)
-    },
-    'expired-callback': () => {
-      emit('refresh')
-    },
-    'error-callback': () => {
-      emit('refresh')
-    },
+
+  turnstileWidgetId = window.turnstile.render(turnstileContainer.value, {
+    'sitekey': props.captcha.site_key,
+    'callback': token => emit('result', { turnstile_token: token }),
+    'expired-callback': () => emit('refresh'),
+    'error-callback': () => emit('refresh'),
   })
 }
 
 onMounted(async () => {
-  if (props.captcha && 'provider' in props.captcha && props.captcha.provider === 'turnstile') {
-    await loadTurnstileScript()
-    renderTurnstile()
-  }
+  if (!('provider' in props.captcha))
+    return
+  if (!window.turnstile)
+    await loadTurnstile()
+  renderTurnstile()
 })
 
 onUnmounted(() => {
-  if (turnstileWidgetId.value && (window as any).turnstile) {
-    (window as any).turnstile.remove(turnstileWidgetId.value)
-  }
+  if (turnstileWidgetId && window.turnstile)
+    window.turnstile.remove(turnstileWidgetId)
 })
 </script>
 
 <template>
-  <!-- go-captcha -->
   <gocaptcha-click
     v-if="'type' in captcha && captcha.type === 'click'"
-    ref="captchaRef"
     :config="{ width: 300, height: 240, title: '请依次点击', buttonText: '确认' }"
     :data="{ image: captcha.master_image, thumb: captcha.thumb_image }"
-    :events="{ confirm: onConfirmClick, refresh: () => emit('refresh'), close: () => emit('close') }"
+    :events="{ confirm: confirmClick, refresh: () => emit('refresh'), close: () => emit('close') }"
   />
   <gocaptcha-rotate
     v-else-if="'type' in captcha && captcha.type === 'rotate'"
-    ref="captchaRef"
     :config="{ width: 280 }"
     :data="{ image: captcha.master_image, thumb: captcha.thumb_image }"
-    :events="{ confirm: onConfirmRotate, refresh: () => emit('refresh'), close: () => emit('close') }"
+    :events="{ confirm: confirmRotate, refresh: () => emit('refresh'), close: () => emit('close') }"
   />
   <gocaptcha-slide
     v-else-if="'type' in captcha && captcha.type === 'slide'"
-    ref="captchaRef"
     :config="{ width: 300, height: 240 }"
     :data="{
       image: captcha.master_image,
-      thumb: captcha.tile_image ?? captcha.thumb_image ?? '',
-      thumbX: captcha.thumb_x ?? 0,
-      thumbY: captcha.thumb_y ?? 0,
-      thumbWidth: captcha.tile_width ?? 40,
-      thumbHeight: captcha.tile_height ?? 40,
+      thumb: captcha.tile_image,
+      thumbX: captcha.thumb_x,
+      thumbY: captcha.thumb_y,
+      thumbWidth: captcha.tile_width,
+      thumbHeight: captcha.tile_height,
     }"
-    :events="{ confirm: onConfirmSlide, refresh: () => emit('refresh'), close: () => emit('close') }"
+    :events="{ confirm: confirmSlide, refresh: () => emit('refresh'), close: () => emit('close') }"
   />
-  <!-- Turnstile -->
-  <div
-    v-else-if="'provider' in captcha && captcha.provider === 'turnstile'"
-    ref="turnstileContainer"
-  />
+  <div v-else ref="turnstile" class="min-h-16 flex justify-center" />
 </template>

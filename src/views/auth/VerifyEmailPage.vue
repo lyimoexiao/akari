@@ -1,173 +1,110 @@
 <script setup lang="ts">
 import type { FormInst, FormRules } from 'naive-ui'
-import { ref } from 'vue'
+import { useMessage } from 'naive-ui'
+import { reactive, shallowRef, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiRequestError } from '@/api'
 import { sendVerificationEmail, verifyEmail } from '@/api/auth'
+import AuthShell from '@/components/auth/AuthShell.vue'
 import { useAuthStore } from '@/stores/auth'
+
+type VerificationStep = 'send' | 'verify' | 'done'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const formRef = ref<FormInst | null>(null)
-
-const step = ref<'send' | 'verify' | 'done'>('send')
-const verificationToken = ref('')
-const message = ref('')
-const error = ref('')
-const loading = ref(false)
+const message = useMessage()
+const formRef = useTemplateRef<FormInst>('form')
+const form = reactive({ token: '' })
+const step = shallowRef<VerificationStep>('send')
+const loading = shallowRef(false)
 
 const rules: FormRules = {
-  token: [
-    { required: true, message: '请输入验证令牌', trigger: 'blur' },
-  ],
+  token: [{ required: true, message: '请输入验证令牌', trigger: ['blur', 'input'] }],
 }
 
-async function handleSendEmail() {
-  error.value = ''
+async function sendEmail(): Promise<void> {
+  const token = authStore.token
+  if (!token)
+    return
+
   loading.value = true
   try {
-    const res = await sendVerificationEmail(authStore.token!)
-    message.value = res
+    const responseMessage = await sendVerificationEmail(token)
+    message.success(responseMessage)
     step.value = 'verify'
   }
-  catch (err) {
-    if (err instanceof ApiRequestError) {
-      error.value = err.message
-    }
-    else {
-      error.value = '发送验证邮件失败'
-    }
+  catch (error) {
+    message.error(error instanceof ApiRequestError ? error.message : '发送验证邮件失败')
   }
   finally {
     loading.value = false
   }
 }
 
-async function handleVerify() {
-  error.value = ''
-
+async function submit(): Promise<void> {
   try {
     await formRef.value?.validate()
   }
-  catch {
-    return
+  catch (error) {
+    if (Array.isArray(error))
+      return
+    throw error
   }
+
+  const token = authStore.token
+  if (!token)
+    return
 
   loading.value = true
   try {
-    const res = await verifyEmail(authStore.token!, verificationToken.value)
-    message.value = res
-    step.value = 'done'
+    await verifyEmail(token, form.token)
     await authStore.refreshCurrentUser()
+    step.value = 'done'
   }
-  catch (err) {
-    if (err instanceof ApiRequestError) {
-      error.value = err.message
-    }
-    else {
-      error.value = '验证失败'
-    }
+  catch (error) {
+    message.error(error instanceof ApiRequestError ? error.message : '邮箱验证失败')
   }
   finally {
     loading.value = false
   }
-}
-
-function goHome() {
-  router.push('/')
 }
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center" style="background: var(--n-color-body);">
-    <n-card style="width: 400px;" :bordered="true" size="large">
-      <template #header>
-        <div class="text-center">
-          <h1 class="text-2xl font-bold mb-1" style="color: var(--n-text-color);">
-            邮箱验证
-          </h1>
-        </div>
+  <AuthShell title="验证邮箱" description="完成验证以保护你的 Akari 账户">
+    <NSteps :current="step === 'send' ? 1 : step === 'verify' ? 2 : 3" size="small" class="mb-6">
+      <NStep title="发送" />
+      <NStep title="验证" />
+      <NStep title="完成" />
+    </NSteps>
+
+    <NFlex v-if="step === 'send'" vertical :size="16">
+      <NText depth="3" class="text-center">
+        验证邮件将发送至 <strong>{{ authStore.email }}</strong>
+      </NText>
+      <NButton type="primary" block size="large" :loading="loading" @click="sendEmail">
+        发送验证邮件
+      </NButton>
+    </NFlex>
+
+    <NForm v-else-if="step === 'verify'" ref="form" :model="form" :rules="rules" @submit.prevent="submit">
+      <NAlert type="info" :show-icon="true" class="mb-4">
+        验证令牌已发送，请检查收件箱和垃圾邮件。
+      </NAlert>
+      <NFormItem label="验证令牌" path="token">
+        <NInput v-model:value="form.token" placeholder="在此粘贴令牌" :disabled="loading" />
+      </NFormItem>
+      <NButton type="primary" block attr-type="submit" size="large" :loading="loading">
+        验证邮箱
+      </NButton>
+    </NForm>
+
+    <NResult v-else status="success" title="邮箱已验证" description="你的账户已解锁全部可用功能。">
+      <template #footer>
+        <NButton type="primary" @click="router.replace({ name: 'UserHome' })">
+          返回账户中心
+        </NButton>
       </template>
-
-      <n-steps :current="step === 'send' ? 0 : step === 'verify' ? 1 : 2" class="mb-6">
-        <n-step title="发送" />
-        <n-step title="验证" />
-        <n-step title="完成" />
-      </n-steps>
-
-      <template v-if="step === 'send'">
-        <p class="text-sm text-center mb-6" style="color: var(--n-text-color-3);">
-          验证邮箱 <strong>{{ authStore.email }}</strong> 以解锁全部功能。
-        </p>
-
-        <n-alert v-if="error" type="error" :closable="false" class="mb-4">
-          {{ error }}
-        </n-alert>
-
-        <n-button
-          type="primary"
-          block
-          size="large"
-          :loading="loading"
-          @click="handleSendEmail"
-        >
-          发送验证邮件
-        </n-button>
-      </template>
-
-      <template v-if="step === 'verify'">
-        <p class="text-sm text-center mb-2" style="color: var(--n-text-color-3);">
-          验证令牌已发送至你的邮箱。
-        </p>
-        <p class="text-xs text-center mb-6" style="color: var(--n-text-color-3);">
-          输入下方令牌完成验证。
-        </p>
-
-        <n-form ref="formRef" :rules="rules" :model="{ token: verificationToken }" @submit.prevent="handleVerify">
-          <n-form-item label="验证令牌" path="token">
-            <n-input
-              v-model:value="verificationToken"
-              placeholder="在此粘贴令牌"
-              :disabled="loading"
-            />
-          </n-form-item>
-
-          <n-alert v-if="error" type="error" :closable="false" class="mb-4">
-            {{ error }}
-          </n-alert>
-
-          <n-button
-            type="primary"
-            block
-            attr-type="submit"
-            size="large"
-            :loading="loading"
-          >
-            验证邮箱
-          </n-button>
-        </n-form>
-      </template>
-
-      <template v-if="step === 'done'">
-        <div class="text-center py-4">
-          <n-icon size="48" color="#18a058">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-          </n-icon>
-          <p class="text-sm mt-4 mb-6" style="color: var(--n-text-color-3);">
-            你的邮箱已验证成功！
-          </p>
-
-          <n-button
-            type="primary"
-            block
-            size="large"
-            @click="goHome"
-          >
-            返回首页
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </div>
+    </NResult>
+  </AuthShell>
 </template>

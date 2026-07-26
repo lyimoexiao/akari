@@ -1,36 +1,14 @@
 <script setup lang="ts">
-import { darkTheme, useOsTheme } from 'naive-ui'
+import { useTitle } from '@vueuse/core'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-const osTheme = useOsTheme()
+const route = useRoute()
+useTitle(computed(() => `${route.meta.title ?? 'Akari'} · Akari`))
 </script>
 
 <template>
-  <n-config-provider :theme="osTheme === 'dark' ? darkTheme : null" :theme-overrides="{ common: { borderRadius: '8px' } }">
-    <n-global-style />
-    <n-message-provider>
-      <n-dialog-provider>
-        <router-view />
-      </n-dialog-provider>
-    </n-message-provider>
-  </n-config-provider>
+  <Provider>
+    <RouterView />
+  </Provider>
 </template>
-
-<style>
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  height: 100%;
-}
-
-#app {
-  height: 100%;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-</style>

@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/lyimoexiao/akari/internal/config"
-	"github.com/lyimoexiao/akari/internal/model"
-	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -43,8 +41,7 @@ func New(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 
-	// Auto-migrate all models
-	if err := db.AutoMigrate(&model.User{}, &yggdrasil.YggdrasilProfile{}, &yggdrasil.YggdrasilToken{}); err != nil {
+	if err := Migrate(db); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 

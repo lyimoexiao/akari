@@ -1,201 +1,103 @@
 <script setup lang="ts">
 import type { FormInst, FormRules } from 'naive-ui'
-import type { CaptchaData, TurnstileData } from '@/api/captcha'
+import { useUrlSearchParams } from '@vueuse/core'
 import { useMessage } from 'naive-ui'
-import { ref } from 'vue'
+import { reactive, shallowRef, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiRequestError } from '@/api'
-import { fetchCaptcha } from '@/api/captcha'
+import AuthShell from '@/components/auth/AuthShell.vue'
+import CaptchaDialog from '@/components/auth/CaptchaDialog.vue'
+import { useCaptchaChallenge } from '@/composables/useCaptchaChallenge'
 import { useAuthStore } from '@/stores/auth'
-import CaptchaWidget from './CaptchaWidget.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const message = useMessage()
-
-const formRef = ref<FormInst | null>(null)
-
-const username = ref('')
-const password = ref('')
-const loading = ref(false)
-
-function isCaptchaData(data: CaptchaData | TurnstileData | null): data is CaptchaData {
-  return data !== null && 'captcha_id' in data
-}
-const captchaEnabled = ref(false)
-const captchaData = ref<CaptchaData | TurnstileData | null>(null)
-const captchaResult = ref<Record<string, unknown> | null>(null)
-const showCaptcha = ref(false)
-const captchaKey = ref(0)
+const formRef = useTemplateRef<FormInst>('form')
+const loading = shallowRef(false)
+const form = reactive({ username: '', password: '' })
+const params = useUrlSearchParams<{ redirect?: string }>('history', { write: false })
+const captcha = useCaptchaChallenge()
 
 const rules: FormRules = {
   username: [
-    { required: true, message: '请输入用户名或邮箱', trigger: 'blur' },
+    { required: true, message: '请输入用户名或邮箱', trigger: ['blur', 'input'] },
     { min: 3, message: '至少 3 个字符', trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
+    { required: true, message: '请输入密码', trigger: ['blur', 'input'] },
     { min: 6, message: '至少 6 个字符', trigger: 'blur' },
   ],
 }
 
-async function loadCaptcha() {
-  try {
-    const envelope = await fetchCaptcha()
-    if (envelope.enabled && envelope.data) {
-      captchaData.value = envelope.data
-      captchaEnabled.value = true
-      captchaKey.value++
-    }
-  }
-  catch {
-    // captcha disabled
-  }
-  if (captchaData.value === null) {
-    captchaData.value = {} as CaptchaData
-  }
-}
-
-async function openCaptcha() {
-  captchaResult.value = null
-  showCaptcha.value = true
-}
-
-function onCaptchaResult(result: Record<string, unknown>) {
-  captchaResult.value = result
-  showCaptcha.value = false
-  handleLogin()
-}
-
-function onCaptchaClose() {
-  showCaptcha.value = false
-}
-
-function onCaptchaRefresh() {
-  loadCaptcha()
-}
-
-async function handleLogin() {
+async function submit(): Promise<void> {
   try {
     await formRef.value?.validate()
   }
-  catch {
-    return
+  catch (error) {
+    if (Array.isArray(error))
+      return
+    throw error
   }
 
-  if (captchaData.value === null) {
-    await loadCaptcha()
-  }
-
-  if (captchaEnabled.value && captchaResult.value === null) {
-    openCaptcha()
+  if (!await captcha.allowSubmit())
     return
-  }
 
   loading.value = true
   try {
-    const params: Record<string, any> = {
-      username: username.value,
-      password: password.value,
-    }
-    if (captchaResult.value?.turnstile_token) {
-      params.captcha_token = captchaResult.value.turnstile_token
-    }
-    else if (isCaptchaData(captchaData.value)) {
-      params.captcha_id = captchaData.value.captcha_id
-      params.user_answer = captchaResult.value ?? undefined
-    }
-    await authStore.login(params as any)
-    router.push('/')
+    await authStore.login({
+      username: form.username,
+      password: form.password,
+      ...captcha.requestFields.value,
+    })
+    const redirect = typeof params.redirect === 'string' && params.redirect.startsWith('/')
+      ? params.redirect
+      : '/user'
+    await router.replace(redirect)
   }
-  catch (err) {
-    const msg = err instanceof ApiRequestError ? err.message : '发生未知错误'
-    message.error(msg)
-    loadCaptcha()
-    captchaResult.value = null
+  catch (error) {
+    message.error(error instanceof ApiRequestError ? error.message : '登录失败，请稍后重试')
+    await captcha.refresh()
   }
   finally {
     loading.value = false
   }
 }
+
+function acceptCaptcha(value: Readonly<Record<string, unknown>>): void {
+  captcha.acceptResult(value)
+  void submit()
+}
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center" style="background: var(--n-color-body);">
-    <n-card style="width: 400px;" :bordered="true" size="large">
-      <template #header>
-        <div class="text-center">
-          <h1 class="text-2xl font-bold mb-1" style="color: var(--n-text-color);">
-            登录
-          </h1>
-          <p class="text-sm" style="color: var(--n-text-color-3);">
-            欢迎回到 Akari
-          </p>
-        </div>
-      </template>
-
-      <n-form ref="formRef" :rules="rules" :model="{ username, password }" @submit.prevent="handleLogin">
-        <n-form-item label="用户名或邮箱" path="username">
-          <n-input
-            v-model:value="username"
-            placeholder="用户名或邮箱"
-            :disabled="loading"
-          />
-        </n-form-item>
-
-        <n-form-item label="密码" path="password">
-          <n-input
-            v-model:value="password"
-            type="password"
-            placeholder="请输入密码"
-            show-password-on="click"
-            :disabled="loading"
-          />
-        </n-form-item>
-
-        <n-button
-          type="primary"
-          block
-          attr-type="submit"
-          :loading="loading"
-          size="large"
-        >
-          登录
-        </n-button>
-      </n-form>
-
-      <p class="text-sm text-center mt-2" style="color: var(--n-text-color-3);">
-        <router-link to="/forgot-password" style="color: var(--n-primary-color); text-decoration: none;">
+  <AuthShell title="登录" description="欢迎回到 Akari！">
+    <NForm ref="form" :model="form" :rules="rules" @submit.prevent="submit">
+      <NFormItem label="用户名或邮箱" path="username">
+        <NInput v-model:value="form.username" autocomplete="username" placeholder="请输入用户名或邮箱" :disabled="loading" />
+      </NFormItem>
+      <NFormItem label="密码" path="password">
+        <NInput v-model:value="form.password" type="password" autocomplete="current-password" placeholder="请输入密码" show-password-on="click" :disabled="loading" />
+      </NFormItem>
+      <NButton type="primary" block attr-type="submit" :loading="loading" size="large">
+        登录
+      </NButton>
+      <NFlex class="pt-4" justify="space-between">
+        <NButton text type="primary" @click="router.push({ name: 'AuthForgotPassword' })">
           忘记密码？
-        </router-link>
-      </p>
+        </NButton>
+        <NButton text type="primary" @click="router.push({ name: 'AuthRegister' })">
+          注册新账号
+        </NButton>
+      </NFlex>
+    </NForm>
 
-      <p class="text-sm text-center mt-4" style="color: var(--n-text-color-3);">
-        没有账号？
-        <router-link to="/register" style="color: var(--n-primary-color); text-decoration: none;">
-          注册
-        </router-link>
-      </p>
-    </n-card>
-
-    <n-modal
-      v-model:show="showCaptcha"
-      :mask-closable="true"
-      preset="card"
-      style="width: 360px;"
-      title="安全验证"
-      :bordered="false"
-      :segmented="false"
-      @update:show="onCaptchaClose"
-    >
-      <CaptchaWidget
-        v-if="captchaData"
-        :key="captchaKey"
-        :captcha="captchaData"
-        @result="onCaptchaResult"
-        @refresh="onCaptchaRefresh"
-        @close="onCaptchaClose"
-      />
-    </n-modal>
-  </div>
+    <CaptchaDialog
+      v-model="captcha.isOpen.value"
+      :challenge="captcha.challenge.value"
+      :challenge-key="captcha.challengeKey.value"
+      @result="acceptCaptcha"
+      @refresh="captcha.refresh"
+    />
+  </AuthShell>
 </template>

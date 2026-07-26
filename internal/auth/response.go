@@ -27,7 +27,7 @@ func toUserResp(u *model.User) UserResp {
 		ID:              u.ID,
 		Username:        u.Username,
 		Email:           u.Email,
-		Role:            u.Role,
+		Role:            model.PrimaryRole(u.Roles),
 		EmailVerifiedAt: u.EmailVerifiedAt,
 		CreatedAt:       u.CreatedAt,
 	}
