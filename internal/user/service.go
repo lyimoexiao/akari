@@ -57,7 +57,8 @@ func (s *Service) VerifyEmail(ctx context.Context, callerID uint, req VerifyEmai
 	if err != nil {
 		return err
 	}
-	if err := s.repository.VerifyEmail(ctx, target.ID, s.clock.Now()); err != nil {
+	now := s.clock.Now()
+	if err := s.repository.VerifyEmail(ctx, target.ID, now); err != nil {
 		return fmt.Errorf("verify email: %w", err)
 	}
 	return nil
@@ -91,6 +92,7 @@ func (s *Service) DeleteUser(ctx context.Context, command DeleteUserCommand) err
 	}
 	return nil
 }
+
 
 func (s *Service) loadMutableTarget(ctx context.Context, callerID, userID uint) (model.User, error) {
 	target, err := s.repository.FindByID(ctx, userID)

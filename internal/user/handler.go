@@ -118,3 +118,4 @@ func (h *Handler) DeleteUser(ctx *gin.Context) {
 	}
 	response.SuccessWithMsg(ctx, "用户已删除", nil)
 }
+

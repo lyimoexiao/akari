@@ -22,6 +22,9 @@ import (
 	"github.com/lyimoexiao/akari/internal/role"
 	"github.com/lyimoexiao/akari/internal/router"
 	"github.com/lyimoexiao/akari/internal/routeradapter"
+	"github.com/lyimoexiao/akari/internal/scoreadapter"
+	"github.com/lyimoexiao/akari/internal/sign"
+	"github.com/lyimoexiao/akari/internal/signadapter"
 	"github.com/lyimoexiao/akari/internal/smtp"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/useradapter"
@@ -100,6 +103,10 @@ func Initialize(cfgPath string) (*App, func(), error) {
 	}
 	yggdrasilService := ProvideYggdrasilService(db, cache, config, sugaredLogger, keyManager)
 	yggdrasilHandler := ProvideYggdrasilHandler(yggdrasilService, sugaredLogger)
+	signadapterRepository := ProvideSignRepository(db)
+	scoreadapterRepository := ProvideScoreOperator(db)
+	signService := ProvideSignService(config, signadapterRepository, scoreadapterRepository)
+	signHandler := ProvideSignHandler(signService, sugaredLogger)
 	handlers := &router.Handlers{
 		Auth:       handler,
 		User:       userHandler,
@@ -107,6 +114,7 @@ func Initialize(cfgPath string) (*App, func(), error) {
 		Permission: permissionHandler,
 		RequestLog: requestlogHandler,
 		Yggdrasil:  yggdrasilHandler,
+		Sign:       signHandler,
 	}
 	dependencies := &router.Dependencies{
 		Health:         healthChecker,
@@ -284,6 +292,32 @@ func ProvideUserService(db *gorm.DB) *user.Service {
 		Clock:      useradapter.Clock{},
 		Hasher:     useradapter.PasswordHasher{},
 	})
+}
+
+func ProvideScoreOperator(db *gorm.DB) *scoreadapter.Repository {
+	return scoreadapter.NewRepository(db)
+}
+
+func ProvideSignRepository(db *gorm.DB) *signadapter.Repository {
+	return signadapter.NewRepository(db)
+}
+
+func ProvideSignService(cfg *config.Config, repo *signadapter.Repository, ops *scoreadapter.Repository) *sign.Service {
+	return sign.NewService(sign.Dependencies{
+		Repository: repo,
+		ScoreOps:   ops,
+		Config: sign.SignConfig{
+			GapHours:  cfg.Score.SignGapHours,
+			ScoreMin:  cfg.Score.SignScoreMin,
+			ScoreMax:  cfg.Score.SignScoreMax,
+			AfterZero: cfg.Score.SignAfterZero,
+		},
+		Clock: signadapter.Clock{},
+	})
+}
+
+func ProvideSignHandler(svc *sign.Service, logger2 *zap.SugaredLogger) *sign.Handler {
+	return sign.NewHandler(svc, logger2)
 }
 
 func ProvideUserHandler(svc *user.Service, permissions *permission.Middleware, logger2 *zap.SugaredLogger) *user.Handler {

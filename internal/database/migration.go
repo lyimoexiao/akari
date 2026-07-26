@@ -57,6 +57,7 @@ func Migrate(db *gorm.DB) error {
 		&model.UserRole{},
 		&model.RolePermission{},
 		&model.RequestLog{},
+		&model.ScoreLog{},
 	); err != nil {
 		return fmt.Errorf("migrate access-control schema: %w", err)
 	}

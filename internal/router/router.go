@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
 	"github.com/lyimoexiao/akari/internal/auth"
 	"github.com/lyimoexiao/akari/internal/captcha"
 	"github.com/lyimoexiao/akari/internal/logger"
@@ -19,10 +21,11 @@ import (
 	"github.com/lyimoexiao/akari/internal/requestlog"
 	"github.com/lyimoexiao/akari/internal/response"
 	"github.com/lyimoexiao/akari/internal/role"
+	"github.com/lyimoexiao/akari/internal/sign"
+	"github.com/lyimoexiao/akari/internal/score"
 	"github.com/lyimoexiao/akari/internal/user"
 	"github.com/lyimoexiao/akari/internal/yggdrasil"
 	"github.com/lyimoexiao/akari/web"
-	"go.uber.org/zap"
 )
 
 type Handlers struct {
@@ -32,6 +35,8 @@ type Handlers struct {
 	Permission *permission.Handler
 	RequestLog *requestlog.Handler
 	Yggdrasil  *yggdrasil.Handler
+	Sign       *sign.Handler
+	Score      *score.Handler
 }
 
 type Dependencies struct {
@@ -97,6 +102,12 @@ func Setup(deps *Dependencies) *gin.Engine {
 			requestLogs := protected.Group("")
 			requestLogs.Use(deps.Handlers.Permission.Require())
 			deps.Handlers.RequestLog.RegisterRoutes(requestLogs)
+		}
+		if deps.Handlers.Sign != nil {
+			deps.Handlers.Sign.RegisterRoutes(protected)
+		}
+		if deps.Handlers.Score != nil {
+			deps.Handlers.Score.RegisterRoutes(protected)
 		}
 	} else {
 		deps.Logger.Warn("auth middleware is nil, protected routes not registered")

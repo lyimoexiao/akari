@@ -18,11 +18,29 @@ type Config struct {
 	SMTP      SMTPConfig      `mapstructure:"smtp"`
 	Auth      AuthConfig      `mapstructure:"auth"`
 	Yggdrasil YggdrasilConfig `mapstructure:"yggdrasil"`
+	Score     ScoreConfig     `mapstructure:"score"`
 }
 
 type YggdrasilConfig struct {
 	ServerName         string `mapstructure:"server_name"`
 	ImplementationName string `mapstructure:"implementation_name"`
+}
+
+// ScoreConfig controls the user score/points economy.
+type ScoreConfig struct {
+	InitialScore       int64 `mapstructure:"initial_score"`
+	SignGapHours       int   `mapstructure:"sign_gap_hours"`
+	SignScoreMin       int64 `mapstructure:"sign_score_min"`
+	SignScoreMax       int64 `mapstructure:"sign_score_max"`
+	SignAfterZero      bool  `mapstructure:"sign_after_zero"`
+	CostPerStorageKB   int64 `mapstructure:"cost_per_storage_kb"`
+	CostPrivateStorage int64 `mapstructure:"cost_private_storage"`
+	CostPerPlayer      int64 `mapstructure:"cost_per_player"`
+	CostPerClosetItem  int64 `mapstructure:"cost_per_closet_item"`
+	ReturnScoreOnRemove  bool  `mapstructure:"return_score_on_remove"`
+	AwardPerUpload      int64 `mapstructure:"award_per_upload"`
+	AwardPerLike        int64 `mapstructure:"award_per_like"`
+	TakeBackOnDelete    bool  `mapstructure:"take_back_on_delete"`
 }
 
 type ServerConfig struct {
@@ -223,8 +241,21 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("yggdrasil.server_name", "Akari Yggdrasil")
 	v.SetDefault("yggdrasil.implementation_name", "akari-yggdrasil")
-}
 
+	v.SetDefault("score.initial_score", 1000)
+	v.SetDefault("score.sign_gap_hours", 24)
+	v.SetDefault("score.sign_score_min", 10)
+	v.SetDefault("score.sign_score_max", 100)
+	v.SetDefault("score.sign_after_zero", false)
+	v.SetDefault("score.cost_per_storage_kb", 0)
+	v.SetDefault("score.cost_private_storage", 0)
+	v.SetDefault("score.cost_per_player", 100)
+	v.SetDefault("score.cost_per_closet_item", 0)
+	v.SetDefault("score.return_score_on_remove", true)
+	v.SetDefault("score.award_per_upload", 0)
+	v.SetDefault("score.award_per_like", 0)
+	v.SetDefault("score.take_back_on_delete", true)
+}
 // loadDotEnv reads a .env file and sets each KEY=VALUE into the OS environment,
 // so viper's AutomaticEnv can pick them up. Existing env vars are NOT overridden.
 func loadDotEnv(path string) {

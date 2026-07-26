@@ -14,6 +14,8 @@ type User struct {
 	Password        string         `gorm:"size:255;not null" json:"-"` // never expose in JSON
 	Roles           []Role         `gorm:"many2many:user_roles" json:"roles,omitempty"`
 	EmailVerifiedAt *time.Time     `gorm:"index" json:"email_verified_at,omitempty"`
+	Score           int64          `gorm:"not null;default:1000" json:"score"`
+	LastSignAt      *time.Time     `gorm:"index" json:"last_sign_at,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
