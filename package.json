@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "go-captcha-vue": "catalog:prod",
-    "ky": "^2.0.2",
+    "ky": "catalog:prod",
     "naive-ui": "catalog:prod",
     "pinia": "catalog:prod",
     "vue": "catalog:prod",
     "vue-router": "catalog:prod",
-    "zod": "^4.4.3"
+    "zod": "catalog:prod"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",

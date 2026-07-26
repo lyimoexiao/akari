@@ -65,6 +65,9 @@ catalogs:
     go-captcha-vue:
       specifier: ^2.0.7
       version: 2.0.7
+    ky:
+      specifier: ^2.0.2
+      version: 2.0.2
     naive-ui:
       specifier: ^2.44.1
       version: 2.44.1
@@ -77,6 +80,9 @@ catalogs:
     vue-router:
       specifier: ^5.2.0
       version: 5.2.0
+    zod:
+      specifier: ^4.4.3
+      version: 4.4.3
 
 importers:
 
@@ -86,7 +92,7 @@ importers:
         specifier: catalog:prod
         version: 2.0.7(vue@3.5.40(typescript@6.0.3))
       ky:
-        specifier: ^2.0.2
+        specifier: catalog:prod
         version: 2.0.2
       naive-ui:
         specifier: catalog:prod
@@ -101,7 +107,7 @@ importers:
         specifier: catalog:prod
         version: 5.2.0(@vue/compiler-sfc@3.5.40)(pinia@4.0.2(@vue/devtools-api@8.1.5)(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3)))(rolldown@1.1.5)(vite@8.1.5(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
       zod:
-        specifier: ^4.4.3
+        specifier: catalog:prod
         version: 4.4.3
     devDependencies:
       '@antfu/eslint-config':
