@@ -6,6 +6,7 @@ import { computed, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiRequestError } from '@/api'
 import { addToCloset, deleteTexture, listTextures, updateTexture } from '@/api/skinlib'
+import TextureCard from '@/components/skin/TextureCard.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -67,8 +68,6 @@ function onOrderChange(o: string) {
   order.value = o as 'latest' | 'likes'
   void refresh(0)
 }
-
-const previewUrl = (texture: TextureItem) => texture.url || `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/raw/${texture.hash}`
 
 function goUpload() {
   void router.push({ name: 'UserTextureUpload' })
@@ -136,22 +135,31 @@ function confirmDelete(texture: TextureItem) {
 </script>
 
 <template>
-  <section class="mx-auto max-w-280 px-4 py-6 sm:px-6 sm:py-8">
-    <NFlex justify="space-between" align="start" class="mb-6" :wrap="true">
-      <div>
-        <NH2 class="m-0! text-5! font-600!">
-          皮肤库
-        </NH2>
-        <NText depth="3" class="mt-1 block text-3.5">
-          浏览和收集由社区分享的 Minecraft 皮肤与披风
-        </NText>
+  <section class="mx-auto max-w-320 px-4 sm:px-6">
+    <!-- Hero 横幅 -->
+    <div class="skin-stage relative mt-6 overflow-hidden rounded-2xl border border-[var(--n-border-color)]">
+      <div class="grid items-center gap-4 px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[1fr_auto]">
+        <div>
+          <NFlex align="center" :size="8" class="mb-2">
+            <span class="i-ph-t-shirt-duotone text-5 text-[var(--n-primary-color)]" />
+            <NH2 class="m-0! text-5! font-700!">
+              皮肤库
+            </NH2>
+          </NFlex>
+          <NText depth="3" class="block text-3.5">
+            浏览和收集由社区分享的 Minecraft 皮肤与披风，卡片支持拖拽旋转查看
+          </NText>
+        </div>
+        <NButton v-if="authStore.isAuthenticated" type="primary" size="large" @click="goUpload()">
+          <template #icon>
+            <span class="i-ph-upload-simple-duotone" />
+          </template>
+          上传皮肤
+        </NButton>
       </div>
-      <NButton v-if="authStore.isAuthenticated" type="primary" @click="goUpload()">
-        上传皮肤
-      </NButton>
-    </NFlex>
+    </div>
 
-    <NAlert v-if="errorMessage" type="error" class="mb-4">
+    <NAlert v-if="errorMessage" type="error" class="mb-4 mt-4">
       {{ errorMessage }}
       <template #action>
         <NButton text type="error" @click="refresh(0)">
@@ -161,7 +169,7 @@ function confirmDelete(texture: TextureItem) {
     </NAlert>
 
     <!-- Filters -->
-    <NFlex class="mb-4" :wrap="true" align="center">
+    <NFlex class="mb-4 mt-4" :wrap="true" align="center">
       <NInput
         v-model:value="search"
         clearable
@@ -176,10 +184,10 @@ function confirmDelete(texture: TextureItem) {
       </NButton>
 
       <NSpace class="ml-auto" :wrap="true">
-        <NTabs v-model:value="typeFilter" type="segment" @update:value="onTypeFilterChange">
-          <NTab key="" title="全部" />
-          <NTab key="skin" title="皮肤" />
-          <NTab key="cape" title="披风" />
+        <NTabs v-model:value="typeFilter" type="segment" size="small" class="shrink-0" @update:value="onTypeFilterChange">
+          <NTab key="all" name="" label="全部" />
+          <NTab key="skin" name="skin" label="皮肤" />
+          <NTab key="cape" name="cape" label="披风" />
         </NTabs>
         <NSelect
           v-model:value="order"
@@ -204,44 +212,20 @@ function confirmDelete(texture: TextureItem) {
     </template>
 
     <template v-else>
-      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        <NCard
-          v-for="texture in result.items"
-          :key="texture.tid"
-          size="small"
-          hoverable
-          class="texture-card"
-        >
-          <template #cover>
-            <div class="flex aspect-1 items-center justify-center bg-gray-50 p-4 dark:bg-gray-800">
-              <img
-                :src="previewUrl(texture)"
-                :alt="texture.name"
-                class="max-h-32 object-contain image-render-pixel"
-              >
-            </div>
-          </template>
-          <template #header>
-            <div class="truncate text-sm font-medium">
-              {{ texture.name }}
-            </div>
-          </template>
-          <div class="flex items-center justify-between text-xs text-gray-500">
-            <span>{{ texture.type === 'cape' ? '披风' : texture.type === 'alex' ? 'Alex 皮肤' : 'Steve 皮肤' }}</span>
-            <span>{{ texture.likes }} ♥</span>
-          </div>
-          <template #footer>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+        <TextureCard v-for="texture in result.items" :key="texture.tid" :data="texture">
+          <template #actions>
             <NSpace justify="between" align="center">
-              <NButton v-if="canEdit(texture)" size="tiny" @click="toggleVisibility(texture)">
-                {{ texture.public ? '设为私有' : '设为公开' }}
-              </NButton>
               <NButton
                 v-if="authStore.isAuthenticated"
                 size="tiny"
                 secondary
                 @click="addItemToCloset(texture)"
               >
-                添加到衣橱
+                收藏
+              </NButton>
+              <NButton v-if="canEdit(texture)" size="tiny" @click="toggleVisibility(texture)">
+                {{ texture.public ? '设私有' : '设公开' }}
               </NButton>
               <NButton
                 v-if="canDelete(texture)"
@@ -253,7 +237,7 @@ function confirmDelete(texture: TextureItem) {
               </NButton>
             </NSpace>
           </template>
-        </NCard>
+        </TextureCard>
       </div>
 
       <NFlex class="mt-4" justify="end">
@@ -267,9 +251,3 @@ function confirmDelete(texture: TextureItem) {
     </template>
   </section>
 </template>
-
-<style scoped>
-.image-render-pixel {
-  image-rendering: pixelated;
-}
-</style>

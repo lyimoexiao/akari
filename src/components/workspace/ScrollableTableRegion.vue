@@ -22,7 +22,7 @@ const { arrivedState } = useScroll(scrollRegion)
       role="region"
       :aria-label="label"
       tabindex="0"
-      class="overflow-x-auto overscroll-x-contain rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--n-color-target)]"
+      class="overflow-x-auto overscroll-x-contain rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--n-primary-color)]"
     >
       <div :style="{ minWidth: `${minWidth}px` }">
         <slot />
@@ -31,7 +31,7 @@ const { arrivedState } = useScroll(scrollRegion)
     <div
       v-if="!arrivedState.right"
       aria-hidden="true"
-      class="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--n-color)] to-transparent"
+      class="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--n-card-color)] to-transparent"
     />
   </div>
 </template>

@@ -49,16 +49,11 @@ export const listClosetResponseSchema = z.object({
   total_pages: z.number().int().nonnegative(),
 })
 
-export const closetIdsSchema = z.object({
-  ids: z.array(z.number().int()),
-})
-
 export type TextureItem = z.infer<typeof textureItemSchema>
 export type TextureDetail = z.infer<typeof textureDetailSchema>
 export type ListTexturesResp = z.infer<typeof listTexturesResponseSchema>
 export type ClosetItem = z.infer<typeof closetItemSchema>
 export type ListClosetResp = z.infer<typeof listClosetResponseSchema>
-export type ClosetIds = z.infer<typeof closetIdsSchema>
 
 export interface ListTexturesReq {
   readonly page?: number

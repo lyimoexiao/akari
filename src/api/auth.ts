@@ -4,6 +4,7 @@ import {
   authResponseSchema,
   permissionListSchema,
   userResponseSchema,
+  yggdrasilMetadataSchema,
   yggdrasilStatusSchema,
 } from '@/types/auth'
 import { http } from './index'
@@ -40,6 +41,11 @@ export function logoutUser(token: string) {
 
 export function getYggdrasilStatus(token: string) {
   return http.get({ path: 'yggdrasil/profile/status', token, schema: yggdrasilStatusSchema })
+}
+
+/** 获取 Yggdrasil API metadata（公开，无需登录） */
+export function getYggdrasilMetadata() {
+  return http.get({ path: 'yggdrasil/', schema: yggdrasilMetadataSchema })
 }
 
 export function setProfileSkin(token: string, textureTID: number) {

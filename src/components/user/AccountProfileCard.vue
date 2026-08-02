@@ -15,7 +15,15 @@ const registeredAt = useDateFormat(() => new Date(props.user.created_at), 'YYYY-
 </script>
 
 <template>
-  <NCard title="账户资料" size="small">
+  <NCard size="small" class="h-full">
+    <template #header>
+      <NFlex align="center" :size="8">
+        <span class="i-ph-user-circle-duotone text-4 text-[var(--n-primary-color)]" />
+        <NText strong>
+          账户资料
+        </NText>
+      </NFlex>
+    </template>
     <template #header-extra>
       <RoleTag :role="user.role" />
     </template>

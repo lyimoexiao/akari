@@ -37,9 +37,18 @@ export const yggdrasilStatusSchema = z.object({
   last_login_ip: z.string().optional(),
 })
 
+/** Yggdrasil API metadata（公开端点 /api/v1/yggdrasil/） */
+export const yggdrasilMetadataSchema = z.object({
+  meta: z.record(z.string(), z.unknown()),
+  skinDomains: z.array(z.string()),
+  signaturePublickey: z.string(),
+  base_url: z.string().optional(),
+})
+
 export type AuthResp = z.infer<typeof authResponseSchema>
 export type UserResp = z.infer<typeof userResponseSchema>
 export type YggdrasilStatusResp = z.infer<typeof yggdrasilStatusSchema>
+export type YggdrasilMetadataResp = z.infer<typeof yggdrasilMetadataSchema>
 export type BuiltInRole = (typeof BUILT_IN_ROLES)[keyof typeof BUILT_IN_ROLES]
 
 export type CaptchaAnswer = Readonly<Record<string, unknown>>

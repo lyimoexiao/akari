@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import type { ClosetItem } from '@/types/skinlib'
-import { shallowRef, watch } from 'vue'
-import { ApiRequestError } from '@/api'
-import { listCloset } from '@/api/skinlib'
-import { useAuthStore } from '@/stores/auth'
+import { watch } from 'vue'
+import TextureCard from '@/components/skin/TextureCard.vue'
+import { useClosetStore } from '@/stores/closet'
 
 const props = defineProps<{
   show: boolean
@@ -16,35 +14,7 @@ const emit = defineEmits<{
   'select': [tid: number, name: string]
 }>()
 
-const authStore = useAuthStore()
-const items = shallowRef<readonly ClosetItem[]>([])
-const loading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-const page = shallowRef(1)
-const total = shallowRef(0)
-const pageSize = 20
-
-async function loadItems() {
-  if (!authStore.token)
-    return
-  loading.value = true
-  error.value = null
-  try {
-    const result = await listCloset(authStore.token, {
-      page: page.value,
-      page_size: pageSize,
-      type: props.type,
-    })
-    items.value = result.items as readonly ClosetItem[]
-    total.value = result.total
-  }
-  catch (err) {
-    error.value = err instanceof ApiRequestError ? err.message : '加载失败'
-  }
-  finally {
-    loading.value = false
-  }
-}
+const closetStore = useClosetStore()
 
 function select(tid: number, name: string) {
   emit('select', tid, name)
@@ -55,14 +25,10 @@ function close() {
   emit('update:show', false)
 }
 
-const previewUrl = (hash: string) => `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/raw/${hash}`
-
-// Reload items each time the dialog opens
+// 每次打开时重新加载对应类型的衣橱项
 watch(() => props.show, (val) => {
-  if (val) {
-    page.value = 1
-    void loadItems()
-  }
+  if (val)
+    void closetStore.fetchList({ page: 1, category: props.type, search: '' })
 })
 </script>
 
@@ -71,63 +37,47 @@ watch(() => props.show, (val) => {
     :show="show"
     :title="title || ' '"
     preset="card"
-    style="max-width: 600px"
+    style="max-width: 640px"
     @update:show="close"
   >
-    <template v-if="loading">
+    <template v-if="closetStore.loading">
       <div class="flex justify-center py-8">
         <NSpin />
       </div>
     </template>
 
-    <template v-else-if="error">
+    <template v-else-if="closetStore.error">
       <NAlert type="error">
-        {{ error }}
+        {{ closetStore.error }}
       </NAlert>
     </template>
 
-    <template v-else-if="items.length === 0">
-      <NEmpty :description="`衣橱中没有${type === 'cape' ? '披风' : '皮肤'}，先去皮肤库添加吧` || ' '" />
+    <template v-else-if="closetStore.items.length === 0">
+      <NEmpty :description="`衣橱中没有${type === 'cape' ? '披风' : '皮肤'}，先去皮肤库添加吧`" />
     </template>
 
     <template v-else>
       <div class="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        <NCard
-          v-for="item in items"
+        <TextureCard
+          v-for="item in closetStore.items"
+          v-show="item.texture"
           :key="item.texture_tid"
-          size="small"
-          hoverable
+          :data="item.texture!"
+          size="sm"
+          :auto-rotate="false"
           class="cursor-pointer"
           @click="select(item.texture_tid, item.item_name)"
-        >
-          <div class="flex justify-center bg-gray-50 p-2 dark:bg-gray-800">
-            <img
-              v-if="item.texture"
-              :src="previewUrl(item.texture.hash)"
-              :alt="item.item_name"
-              class="h-16 w-16 object-contain image-render-pixel"
-            >
-          </div>
-          <div class="mt-1 truncate text-center text-xs">
-            {{ item.item_name }}
-          </div>
-        </NCard>
+        />
       </div>
 
-      <NFlex v-if="total > pageSize" class="mt-3" justify="center">
+      <NFlex v-if="closetStore.total > closetStore.pageSize" class="mt-3" justify="center">
         <NPagination
-          v-model:page="page"
-          :page-size="pageSize"
-          :item-count="total"
-          @update:page="loadItems"
+          :page="closetStore.page"
+          :page-size="closetStore.pageSize"
+          :item-count="closetStore.total"
+          @update:page="(p: number) => closetStore.fetchList({ page: p })"
         />
       </NFlex>
     </template>
   </NModal>
 </template>
-
-<style scoped>
-.image-render-pixel {
-  image-rendering: pixelated;
-}
-</style>

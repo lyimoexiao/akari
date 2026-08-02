@@ -42,16 +42,36 @@ const columns: DataTableColumns<UserItem> = [
 
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <NCard size="small">
-        <NStatistic label="总用户数" :value="isLoading ? '-' : state.total" />
+        <NFlex align="center" :size="12">
+          <div class="rounded-xl bg-[var(--n-primary-color)]/12 p-3">
+            <span class="i-ph-users-duotone text-4.5 text-[var(--n-primary-color)]" />
+          </div>
+          <NStatistic label="总用户数" :value="isLoading ? '-' : state.total" />
+        </NFlex>
       </NCard>
       <NCard size="small">
-        <NStatistic label="当前权限" :value="authStore.permissions.length" />
+        <NFlex align="center" :size="12">
+          <div class="rounded-xl bg-[var(--n-primary-color)]/12 p-3">
+            <span class="i-ph-key-duotone text-4.5 text-[var(--n-primary-color)]" />
+          </div>
+          <NStatistic label="当前权限" :value="authStore.permissions.length" />
+        </NFlex>
       </NCard>
       <NCard size="small">
-        <NStatistic label="用户管理" :value="authStore.hasPermission('users.read') ? '可用' : '不可用'" />
+        <NFlex align="center" :size="12">
+          <div class="rounded-xl bg-[var(--n-primary-color)]/12 p-3">
+            <span class="i-ph-user-gear-duotone text-4.5 text-[var(--n-primary-color)]" />
+          </div>
+          <NStatistic label="用户管理" :value="authStore.hasPermission('users.read') ? '可用' : '不可用'" />
+        </NFlex>
       </NCard>
       <NCard size="small">
-        <NStatistic label="角色管理" :value="authStore.hasPermission('roles.read') ? '可用' : '不可用'" />
+        <NFlex align="center" :size="12">
+          <div class="rounded-xl bg-[var(--n-primary-color)]/12 p-3">
+            <span class="i-ph-shield-check-duotone text-4.5 text-[var(--n-primary-color)]" />
+          </div>
+          <NStatistic label="角色管理" :value="authStore.hasPermission('roles.read') ? '可用' : '不可用'" />
+        </NFlex>
       </NCard>
     </div>
 

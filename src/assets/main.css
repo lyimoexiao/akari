@@ -2,7 +2,101 @@
   font-family: sans-serif;
   font-family: var(--font-basic);
   font-synthesis: style;
-  line-height: 1.4;
+  line-height: 1.5;
   text-autospace: normal;
   text-size-adjust: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--n-body-color);
+  color: var(--n-text-color);
+}
+
+/* 暗色：基岩灰背景 + 微光渐变 + 像素网格装饰 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      color-mix(in srgb, var(--n-primary-color) 14%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 100%,
+      color-mix(in srgb, var(--n-primary-color) 6%, transparent),
+      transparent 70%
+    );
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--n-text-color) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--n-text-color) 3%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--n-primary-color) 30%, transparent);
+}
+
+/* 像素化图片（皮肤 PNG / 纹理缩略图） */
+.image-render-pixel,
+.img-pixel {
+  image-rendering: pixelated;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--n-text-color) 20%, transparent);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--n-text-color) 32%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* 3D 预览画布底座 */
+.skin-stage {
+  background: radial-gradient(
+    ellipse at 50% 90%,
+    color-mix(in srgb, var(--n-primary-color) 12%, transparent),
+    transparent 60%
+  );
+}
+
+/* 细分割线（品牌卡片底部） */
+.divider-glow {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--n-primary-color), transparent);
 }

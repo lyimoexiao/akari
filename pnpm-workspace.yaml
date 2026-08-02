@@ -7,6 +7,8 @@ trustPolicyExclude:
 packages:
   - 'packages/*'
 
+catalog:
+  '@unocss/preset-web-fonts': ^66.7.5
 catalogs:
   dev:
     '@antfu/eslint-config': ^9.2.0
@@ -35,8 +37,7 @@ catalogs:
     ky: ^2.0.2
     naive-ui: ^2.44.1
     pinia: ^4.0.2
+    skinview3d: ^3.4.2
     vue: ^3.5.40
     vue-router: ^5.2.0
     zod: ^4.4.3
-catalog:
-  '@unocss/preset-web-fonts': ^66.7.5

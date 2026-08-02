@@ -172,4 +172,6 @@ type MetadataResp struct {
 	Meta               map[string]any `json:"meta"`
 	SkinDomains        []string       `json:"skinDomains"`
 	SignaturePublickey string         `json:"signaturePublickey"`
+	// 站点公网地址（server.base_url），供前端展示 Yggdrasil API 地址
+	BaseURL string `json:"base_url,omitempty"`
 }

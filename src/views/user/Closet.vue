@@ -2,80 +2,51 @@
 import type { ClosetItem } from '@/types/skinlib'
 import { useDebounceFn } from '@vueuse/core'
 import { useMessage } from 'naive-ui'
-import { onMounted, shallowRef } from 'vue'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiRequestError } from '@/api'
-import { listCloset, removeFromCloset, updateTexture } from '@/api/skinlib'
+import { updateTexture } from '@/api/skinlib'
+import TextureCard from '@/components/skin/TextureCard.vue'
 import WorkspacePage from '@/components/workspace/WorkspacePage.vue'
+import { useYggdrasilProfile } from '@/composables/useYggdrasilProfile'
 import { useAuthStore } from '@/stores/auth'
+import { useClosetStore } from '@/stores/closet'
 
 const router = useRouter()
 const message = useMessage()
 const authStore = useAuthStore()
+const closetStore = useClosetStore()
+const profile = useYggdrasilProfile()
 
-const items = shallowRef<readonly ClosetItem[]>([])
-const total = shallowRef(0)
-const loading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-const page = shallowRef(1)
-const pageSize = 20
-const search = shallowRef('')
-const category = shallowRef<'skin' | 'cape' | ''>('')
 const renameTID = shallowRef<number | null>(null)
 const renameName = shallowRef('')
 const renameDialogOpen = shallowRef(false)
 
-async function loadCloset() {
-  if (!authStore.token)
-    return
-  loading.value = true
-  error.value = null
-  try {
-    const result = await listCloset(authStore.token, {
-      page: page.value,
-      page_size: pageSize,
-      type: category.value || undefined,
-      search: search.value || undefined,
-    })
-    items.value = result.items as readonly ClosetItem[]
-    total.value = result.total
-  }
-  catch (err) {
-    error.value = err instanceof ApiRequestError ? err.message : '获取衣橱失败'
-  }
-  finally {
-    loading.value = false
-  }
-}
+const equipLoadingTID = shallowRef<number | null>(null)
 
 const debouncedSearch = useDebounceFn(() => {
-  page.value = 1
-  void loadCloset()
+  closetStore.resetPage()
+  void closetStore.fetchList()
 }, 300)
 
 function onSearch() {
-  page.value = 1
-  void loadCloset()
+  closetStore.resetPage()
+  void closetStore.fetchList()
 }
 
 function onPageChange(p: number) {
-  page.value = p
-  void loadCloset()
+  void closetStore.fetchList({ page: p })
 }
 
 function onCategoryChange(cat: string) {
-  category.value = cat as 'skin' | 'cape' | ''
-  page.value = 1
-  void loadCloset()
+  void closetStore.fetchList({ page: 1, category: cat as 'skin' | 'cape' | '' })
 }
 
 async function removeItem(tid: number) {
-  if (!authStore.token)
-    return
   try {
-    await removeFromCloset(authStore.token, tid)
+    await closetStore.remove(tid)
     message.success('已从衣橱移除')
-    void loadCloset()
+    void closetStore.fetchList()
   }
   catch (err) {
     message.error(err instanceof ApiRequestError ? err.message : '移除失败')
@@ -89,25 +60,16 @@ function openRename(item: ClosetItem) {
 }
 
 async function doRename() {
-  if (!authStore.token || renameTID.value === null)
+  if (renameTID.value === null)
     return
   try {
-    const { renameClosetItem } = await import('@/api/skinlib')
-    await renameClosetItem(authStore.token, renameTID.value, { name: renameName.value })
+    await closetStore.rename(renameTID.value, renameName.value)
     message.success('已重命名')
     renameDialogOpen.value = false
-    void loadCloset()
+    void closetStore.fetchList()
   }
   catch (err) {
     message.error(err instanceof ApiRequestError ? err.message : '重命名失败')
-  }
-}
-
-function textureTypeLabel(type: string): string {
-  switch (type) {
-    case 'cape': return '披风'
-    case 'alex': return 'Alex 皮肤'
-    default: return 'Steve 皮肤'
   }
 }
 
@@ -120,38 +82,56 @@ function canToggleVisibility(item: ClosetItem): boolean {
 }
 
 async function setToPublic(item: ClosetItem) {
-  if (!authStore.token || !item.texture)
+  if (!item.texture)
     return
   try {
-    await updateTexture(authStore.token, item.texture_tid, {
+    await updateTexture(authStore.token!, item.texture_tid, {
       name: item.texture.name,
       public: true,
     })
     message.success('已设为公开')
-    void loadCloset()
+    void closetStore.fetchList()
   }
   catch (err) {
     message.error(err instanceof ApiRequestError ? err.message : '操作失败')
   }
 }
 
-const previewUrl = (hash: string, itemUrl?: string) => itemUrl || `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/raw/${hash}`
+/** 装备：皮肤类型 → 设为皮肤；披风类型 → 设为披风 */
+async function equip(item: ClosetItem) {
+  if (!item.texture)
+    return
+  equipLoadingTID.value = item.texture_tid
+  const isCape = item.texture.type === 'cape'
+  const ok = isCape
+    ? await profile.setCape(item.texture_tid)
+    : await profile.setSkin(item.texture_tid)
+  equipLoadingTID.value = null
+  if (ok) {
+    // 展示当前装备效果，供用户确认
+    message.success(isCape ? '披风已装备' : '皮肤已装备')
+  }
+}
+
+const itemsWithTexture = computed(() => closetStore.items.filter(item => item.texture))
 
 onMounted(() => {
-  void loadCloset()
+  void closetStore.fetchList()
 })
 </script>
 
 <template>
-  <WorkspacePage title="我的衣橱" description="管理你收藏的皮肤和披风">
-    <NButton class="mb-4" @click="router.push({ name: 'Skinlib' })">
-      浏览皮肤库
-    </NButton>
+  <WorkspacePage title="我的衣橱" description="管理你收藏的皮肤和披风，点击「设为皮肤 / 披风」即可装备">
+    <template #actions>
+      <NButton @click="router.push({ name: 'Skinlib' })">
+        浏览皮肤库
+      </NButton>
+    </template>
 
-    <NAlert v-if="error" type="error" class="mb-4">
-      {{ error }}
+    <NAlert v-if="closetStore.error" type="error" class="mb-4">
+      {{ closetStore.error }}
       <template #action>
-        <NButton text type="error" @click="loadCloset()">
+        <NButton text type="error" @click="closetStore.fetchList()">
           重试
         </NButton>
       </template>
@@ -160,7 +140,7 @@ onMounted(() => {
     <!-- Filters -->
     <NFlex class="mb-4" :wrap="true" align="center">
       <NInput
-        v-model:value="search"
+        v-model:value="closetStore.search"
         clearable
         placeholder="搜索名称..."
         class="w-full sm:max-w-60"
@@ -171,19 +151,19 @@ onMounted(() => {
       <NButton @click="onSearch">
         搜索
       </NButton>
-      <NTabs v-model:value="category" type="segment" class="ml-auto" @update:value="onCategoryChange">
-        <NTab key="" title="全部" />
-        <NTab key="skin" title="皮肤" />
-        <NTab key="cape" title="披风" />
+      <NTabs v-model:value="closetStore.category" type="segment" size="small" class="ml-auto w-fit! shrink-0" @update:value="onCategoryChange">
+        <NTab key="all" name="" label="全部" />
+        <NTab key="skin" name="skin" label="皮肤" />
+        <NTab key="cape" name="cape" label="披风" />
       </NTabs>
     </NFlex>
 
     <!-- Closet grid -->
-    <div v-if="loading" class="flex justify-center py-12">
+    <div v-if="closetStore.loading" class="flex justify-center py-12">
       <NSpin />
     </div>
 
-    <template v-else-if="items.length === 0">
+    <template v-else-if="itemsWithTexture.length === 0">
       <NEmpty description="衣橱还是空的，去皮肤库逛逛吧" class="py-12">
         <template #action>
           <NButton type="primary" @click="router.push({ name: 'Skinlib' })">
@@ -194,39 +174,25 @@ onMounted(() => {
     </template>
 
     <template v-else>
-      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        <NCard
-          v-for="item in items"
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        <TextureCard
+          v-for="item in itemsWithTexture"
           :key="item.texture_tid"
-          size="small"
-          hoverable
-          class="closet-card"
+          :data="item.texture!"
         >
-          <template #cover>
-            <div class="flex aspect-1 items-center justify-center bg-gray-50 p-4 dark:bg-gray-800">
-              <img
-                v-if="item.texture"
-                :src="previewUrl(item.texture.hash, item.texture.url)"
-                :alt="item.item_name"
-                class="max-h-32 object-contain image-render-pixel"
+          <template #actions>
+            <NSpace justify="between" align="center">
+              <NButton
+                size="tiny"
+                type="primary"
+                secondary
+                :loading="equipLoadingTID === item.texture_tid"
+                @click="equip(item)"
               >
-            </div>
-          </template>
-          <template #header>
-            <div class="truncate text-sm font-medium">
-              {{ item.item_name }}
-            </div>
-          </template>
-          <div class="flex items-center justify-between text-xs text-gray-500">
-            <span v-if="item.texture">
-              {{ textureTypeLabel(item.texture.type) }}
-            </span>
-            <span v-if="item.texture">{{ item.texture.likes }} ♥</span>
-          </div>
-          <template #footer>
-            <NSpace justify="end">
+                {{ item.texture!.type === 'cape' ? '设为披风' : '设为皮肤' }}
+              </NButton>
               <NButton v-if="canToggleVisibility(item)" size="tiny" @click="setToPublic(item)">
-                设为公开
+                设公开
               </NButton>
               <NButton v-if="isUploader(item)" size="tiny" @click="openRename(item)">
                 重命名
@@ -236,14 +202,14 @@ onMounted(() => {
               </NButton>
             </NSpace>
           </template>
-        </NCard>
+        </TextureCard>
       </div>
 
       <NFlex class="mt-4" justify="end">
         <NPagination
-          v-model:page="page"
-          :page-size="pageSize"
-          :item-count="total"
+          :page="closetStore.page"
+          :page-size="closetStore.pageSize"
+          :item-count="closetStore.total"
           @update:page="onPageChange"
         />
       </NFlex>
@@ -264,9 +230,3 @@ onMounted(() => {
     </NModal>
   </WorkspacePage>
 </template>
-
-<style scoped>
-.image-render-pixel {
-  image-rendering: pixelated;
-}
-</style>

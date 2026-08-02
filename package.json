@@ -19,6 +19,7 @@
     "ky": "catalog:prod",
     "naive-ui": "catalog:prod",
     "pinia": "catalog:prod",
+    "skinview3d": "catalog:prod",
     "vue": "catalog:prod",
     "vue-router": "catalog:prod",
     "zod": "catalog:prod"

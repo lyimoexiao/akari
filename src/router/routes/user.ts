@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 export const userRoutes: RouteRecordRaw[] = [
   {
     path: '/user',
-    component: () => import('@/layouts/UserLayout.vue'),
+    component: () => import('@/layouts/DefaultLayout.vue'),
     meta: { title: '账户', requiresAuth: true },
     children: [
       {

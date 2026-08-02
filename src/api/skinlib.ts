@@ -1,7 +1,6 @@
 import type { AddClosetReq, ListClosetReq, ListTexturesReq, RenameClosetReq, UpdateTextureReq } from '@/types/skinlib'
 import { z } from 'zod'
 import {
-  closetIdsSchema,
   listClosetResponseSchema,
   listTexturesResponseSchema,
   textureDetailSchema,
@@ -69,10 +68,6 @@ export function deleteTexture(token: string, tid: number) {
 
 export function listCloset(token: string, params?: ListClosetReq) {
   return http.get({ path: 'closet', token, searchParams: params as Record<string, string | number | undefined>, schema: listClosetResponseSchema })
-}
-
-export function getClosetAllIds(token: string) {
-  return http.get({ path: 'closet/all-ids', token, schema: closetIdsSchema })
 }
 
 export function addToCloset(token: string, data: AddClosetReq) {

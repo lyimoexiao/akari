@@ -128,5 +128,6 @@ func (s *Service) Metadata() *MetadataResp {
 		},
 		SkinDomains:        domains,
 		SignaturePublickey: publicKey,
+		BaseURL:            s.settings.TextureBaseURL,
 	}
 }
