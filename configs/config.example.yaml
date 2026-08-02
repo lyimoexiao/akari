@@ -72,3 +72,4 @@ logger:
 yggdrasil:
   server_name: Akari Yggdrasil
   implementation_name: akari-yggdrasil
+  description: Minecraft 皮肤站 · 支持 Yggdrasil 与 authlib-injector

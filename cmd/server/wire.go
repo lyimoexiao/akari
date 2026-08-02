@@ -307,6 +307,7 @@ func ProvideYggdrasilService(db *gorm.DB, c cache.Cache, cfg *config.Config, log
 			EmailVerificationEnabled: cfg.Auth.EmailVerificationEnabled,
 			ServerName:               cfg.Yggdrasil.ServerName,
 			ImplementationName:       cfg.Yggdrasil.ImplementationName,
+			Description:              cfg.Yggdrasil.Description,
 			ImplementationVersion:    version.Version,
 			TextureBaseURL:           cfg.Server.BaseURL,
 		},

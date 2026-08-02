@@ -31,6 +31,8 @@ type Config struct {
 type YggdrasilConfig struct {
 	ServerName         string `mapstructure:"server_name"`
 	ImplementationName string `mapstructure:"implementation_name"`
+	// 站点描述，展示在页面页脚等位置
+	Description string `mapstructure:"description"`
 }
 
 // StorageConfig controls texture file storage.
@@ -197,6 +199,7 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("yggdrasil.server_name", "Akari Yggdrasil")
 	v.SetDefault("yggdrasil.implementation_name", "akari-yggdrasil")
+	v.SetDefault("yggdrasil.description", "Minecraft 皮肤站 · 支持 Yggdrasil 与 authlib-injector")
 
 	v.SetDefault("score.initial_score", 1000)
 	v.SetDefault("score.sign_gap_hours", 24)

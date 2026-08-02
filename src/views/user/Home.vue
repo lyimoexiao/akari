@@ -150,7 +150,7 @@ async function onClearCape() {
       </template>
     </NAlert>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid items-start gap-4 lg:grid-cols-3">
       <AccountProfileCard
         v-if="authStore.user"
         :user="authStore.user"

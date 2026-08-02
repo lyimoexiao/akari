@@ -15,7 +15,7 @@ const registeredAt = useDateFormat(() => new Date(props.user.created_at), 'YYYY-
 </script>
 
 <template>
-  <NCard size="small" class="h-full">
+  <NCard size="small">
     <template #header>
       <NFlex align="center" :size="8">
         <span class="i-ph-user-circle-duotone text-4 text-[var(--n-primary-color)]" />

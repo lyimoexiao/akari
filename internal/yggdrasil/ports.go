@@ -54,6 +54,7 @@ type Settings struct {
 	ServerName               string
 	ImplementationName       string
 	ImplementationVersion    string
+	Description              string   // 站点描述（页面页脚展示）
 	TextureBaseURL           string   // base URL for texture file serving, e.g. "https://example.com"
 	SkinDomains              []string // extra skin domains beyond defaults
 }

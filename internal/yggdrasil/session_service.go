@@ -124,6 +124,7 @@ func (s *Service) Metadata() *MetadataResp {
 			"serverName":              s.settings.ServerName,
 			"implementationName":      s.settings.ImplementationName,
 			"implementationVersion":   s.settings.ImplementationVersion,
+			"description":             s.settings.Description,
 			"feature.non_email_login": true,
 		},
 		SkinDomains:        domains,

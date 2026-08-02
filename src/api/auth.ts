@@ -1,4 +1,4 @@
-import type { ForgotPasswordReq, LoginReq, RegisterReq, ResetPasswordReq } from '@/types/auth'
+import type { ForgotPasswordReq, LoginReq, RegisterReq, ResetPasswordReq, YggdrasilMetadataResp } from '@/types/auth'
 import { z } from 'zod'
 import {
   authResponseSchema,
@@ -7,9 +7,12 @@ import {
   yggdrasilMetadataSchema,
   yggdrasilStatusSchema,
 } from '@/types/auth'
-import { http } from './index'
+import { ApiRequestError, http } from './index'
 
 const messageSchema = z.string()
+
+// Yggdrasil 协议端点为标准裸 JSON（无 Akari 信封），需要原生 fetch
+const API_ROOT = `${import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? ''}/api/v1/`
 
 export function registerUser(data: RegisterReq) {
   return http.post({ path: 'auth/register', body: data, schema: authResponseSchema })
@@ -43,9 +46,30 @@ export function getYggdrasilStatus(token: string) {
   return http.get({ path: 'yggdrasil/profile/status', token, schema: yggdrasilStatusSchema })
 }
 
-/** 获取 Yggdrasil API metadata（公开，无需登录） */
-export function getYggdrasilMetadata() {
-  return http.get({ path: 'yggdrasil/', schema: yggdrasilMetadataSchema })
+/** 获取 Yggdrasil API metadata（公开协议端点，裸 JSON，无需登录） */
+export async function getYggdrasilMetadata(): Promise<YggdrasilMetadataResp> {
+  let response: Response
+  try {
+    response = await fetch(`${API_ROOT}yggdrasil/`)
+  }
+  catch {
+    throw new ApiRequestError('无法连接到服务器', 0)
+  }
+  if (!response.ok)
+    throw new ApiRequestError('获取 Yggdrasil 元数据失败', response.status)
+
+  let payload: unknown
+  try {
+    payload = await response.json()
+  }
+  catch {
+    throw new ApiRequestError('服务器返回了无法解析的响应', response.status)
+  }
+
+  const result = yggdrasilMetadataSchema.safeParse(payload)
+  if (!result.success)
+    throw new ApiRequestError('服务器数据格式不正确', response.status)
+  return result.data
 }
 
 export function setProfileSkin(token: string, textureTID: number) {

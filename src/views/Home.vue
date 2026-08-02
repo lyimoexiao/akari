@@ -31,11 +31,11 @@ void refreshLatest()
           Akari
         </h1>
         <NText class="mt-4 block text-4.5 font-600 sm:text-5">
-          分享、收藏你的 Minecraft 皮肤与披风
+          下一代 Minecraft 皮肤服务器
         </NText>
         <NText depth="3" class="mx-auto mt-3 block max-w-150 text-3.5 leading-6">
-          基于 Yggdrasil 协议的皮肤站，支持 authlib-injector 客户端直连。
-          上传皮肤、管理衣橱，在网页上实时预览 3D 角色。
+          基于 Yggdrasil 协议的下一代皮肤服务器。上传皮肤、管理衣橱，
+          3D 实时预览你的角色，并通过 authlib-injector 在游戏内无缝使用。
         </NText>
         <NFlex class="mt-8" justify="center" :wrap="true" :size="12">
           <NButton type="primary" size="large" @click="router.push({ name: 'Skinlib' })">
